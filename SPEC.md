@@ -34,7 +34,7 @@ AutoTanque/
     ├── dashboard.js        # Aba 2 (Painel): KPIs, avisos orientativos, gráfico de 6 meses e comparativo
     ├── history.js          # Aba 3 (Histórico): busca textual, filtros por combustível e listagem
     ├── flex.js             # Aba 4 (Calculadora Flex): paridade 70% vs rendimento real do veículo
-    ├── backup.js           # Aba 4 (Backup & Dados): exportação CSV/JSON, importação JSON e exemplos
+    ├── backup.js           # Aba 4 (Backup & Dados): exportação CSV/JSON, importação JSON e exclusão total
     └── app.js              # Inicialização da aplicação no carregamento da página
 ```
 
@@ -52,7 +52,7 @@ AutoTanque/
 | Campo | Tipo | Obrigatório | Regras / Formato |
 | :--- | :--- | :---: | :--- |
 | `id` | `string` | Sim | Identificador único no padrão `'ab_' + timestamp_base36 + '_' + random_base36(5)`. |
-| `createdAt` | `number` | Não* | Timestamp Unix em ms (`Date.now()`) gerado na criação manual (*ausente em dados de exemplo/importados sem o campo). |
+| `createdAt` | `number` | Não* | Timestamp Unix em ms (`Date.now()`) gerado na criação manual (*ausente em registros importados sem o campo). |
 | `date` | `string` | Sim | Data local do abastecimento no formato ISO `YYYY-MM-DD`. |
 | `odometer` | `number` | Sim | Quilometragem total no painel do veículo (`> 0`). Arredondado para 1 casa decimal ao salvar pelo formulário. |
 | `fuelType` | `string` | Sim | Chave pertencente a `FUEL_TYPES`: `'gasolina'`, `'aditivada'`, `'etanol'`, `'gnv'` ou `'diesel'`. |
@@ -197,11 +197,11 @@ Quando o motorista completa o tanque na bomba hoje, o volume que entra repõe o 
 ### 8.1. Cabeçalho Global
 - Subtítulo dinâmico:
   - Com registros: exibe `{ultimoOdometro} km` seguido de `• Média {avgLiquidKmL} km/L` (se já houver ciclo líquido fechado).
-  - Sem registros: exibe `"Armazenamento local offline"` e mostra o botão rápido `"Testar c/ Exemplo"`.
+  - Sem registros: exibe `"Armazenamento local offline"`.
 
 ### 8.2. Aba 2 — Painel (Dashboard)
 - **Avisos de Estado Inicial**:
-  - `0 registros`: convida a registrar ou carregar dados de exemplo.
+  - `0 registros`: convida a registrar o primeiro abastecimento na aba "Abastecer" para acompanhar médias e relatórios.
   - `>= 1 registro` e `0 ciclos fechados`: informa que falta apenas o próximo Tanque Cheio para liberar cálculos de `km/L` e `R$/km`.
 - **Cards de KPI**:
   1. **Gasto no Mês**: soma de `totalValue` dos registros cuja `date` pertence ao mês corrente (`YYYY-MM`) + quantidade de abastecimentos no mês.
@@ -237,8 +237,8 @@ Quando o motorista completa o tanque na bomba hoje, o volume que entra repõe o 
     - Economia estimada no ciclo: `|C_gas - C_et_eq|`.
   - Se estiver usando o histórico real do veículo (`Meu Carro`), exibe adicionalmente os cartões de custo exato por km (`preco / mediaKmL`) para ambos os combustíveis.
 
-- **Exportação e Importação de Dados**:
+- **Exportação, Importação e Exclusão de Dados**:
   - **CSV (`exportCSV`)**: Gera `autotanque_planilha_YYYY-MM-DD.csv` em UTF-8 com BOM (`\uFEFF`), colunas separadas por `;`, números decimais com vírgula (preço unitário com 3 casas, demais com 2 casas) e observações escapadas entre aspas duplas.
   - **Backup JSON (`exportJSON`)**: Gera `autotanque_backup_YYYY-MM-DD.json` com metadados (`app: "AutoTanque"`, `version: 1`, `exportedAt`, `settings` e `records`).
   - **Restauração JSON (`handleImportJSON`)**: Aceita array direto ou objeto com chave `records`. Filtra registros que contenham `odometer`, `totalValue` e `quantity` numéricos válidos, reconstrói `unitPrice` se ausente (`totalValue / quantity`), aplica defaults seguros e solicita confirmação antes de sobrescrever a base local.
-  - **Dados de Exemplo (`buildSampleDataset`)**: Gera 7 registros distribuídos nos últimos 3 meses até o mês atual (incluindo ciclos de Gasolina, transição com parcial, ciclos de Etanol e retorno à Gasolina), permitindo testar imediatamente todos os KPIs, gráficos e a Calculadora Flex personalizada.
+  - **Exclusão Total (`askClearAllData`)**: Solicita confirmação explícita no modal customizado (`#confirmModal`) e remove todos os registros salvos em `autotanque_v1_records`, reinicializando todas as visualizações para o estado vazio.

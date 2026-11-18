@@ -1,5 +1,5 @@
 /* ======================================================================
- * ABA 4 (PARTE 2): EXPORTAÇÃO E IMPORTAÇÃO DE DADOS (CSV / JSON) E EXEMPLOS
+ * ABA 4 (PARTE 2): EXPORTAÇÃO E IMPORTAÇÃO DE DADOS (CSV / JSON)
  * ====================================================================== */
 
 function triggerFileDownload(filename, content, mimeType) {
@@ -141,114 +141,6 @@ function handleImportJSON(event) {
   reader.readAsText(file);
 }
 
-function buildSampleDataset() {
-  const now = new Date();
-  const makeDate = (monthsAgo, day) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, day);
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
-  };
-
-  return [
-    {
-      id: generateId(),
-      date: makeDate(3, 5),
-      odometer: 42100,
-      fuelType: 'gasolina',
-      unitPrice: 5.79,
-      quantity: 41.0,
-      totalValue: 237.39,
-      fullTank: true,
-      notes: 'Posto Shell Avenida'
-    },
-    {
-      id: generateId(),
-      date: makeDate(3, 21),
-      odometer: 42592,
-      fuelType: 'gasolina',
-      unitPrice: 5.84,
-      quantity: 40.5,
-      totalValue: 236.52,
-      fullTank: true,
-      notes: 'Posto Ipiranga Centro'
-    },
-    {
-      id: generateId(),
-      date: makeDate(2, 8),
-      odometer: 42810,
-      fuelType: 'gasolina',
-      unitPrice: 5.89,
-      quantity: 16.98,
-      totalValue: 100.00,
-      fullTank: false,
-      notes: 'Parcial rápido na estrada'
-    },
-    {
-      id: generateId(),
-      date: makeDate(2, 19),
-      odometer: 43120,
-      fuelType: 'etanol',
-      unitPrice: 3.79,
-      quantity: 26.8,
-      totalValue: 101.57,
-      fullTank: true,
-      notes: 'Posto BR — trocando p/ Etanol'
-    },
-    {
-      id: generateId(),
-      date: makeDate(1, 7),
-      odometer: 43465,
-      fuelType: 'etanol',
-      unitPrice: 3.85,
-      quantity: 40.2,
-      totalValue: 154.77,
-      fullTank: true,
-      notes: 'Posto BR Matriz'
-    },
-    {
-      id: generateId(),
-      date: makeDate(1, 24),
-      odometer: 43818,
-      fuelType: 'gasolina',
-      unitPrice: 5.89,
-      quantity: 40.8,
-      totalValue: 240.31,
-      fullTank: true,
-      notes: 'Posto Ipiranga Centro'
-    },
-    {
-      id: generateId(),
-      date: makeDate(0, 4),
-      odometer: 44315,
-      fuelType: 'gasolina',
-      unitPrice: 5.92,
-      quantity: 40.4,
-      totalValue: 239.17,
-      fullTank: true,
-      notes: 'Posto Shell Avenida'
-    }
-  ];
-}
-
-function askLoadSampleData() {
-  const msg = state.records.length > 0
-    ? 'Isso substituirá seus registros atuais por 7 abastecimentos de exemplo (com Gasolina, Etanol e abastecimento parcial) para demonstrar gráficos e médias.'
-    : 'Deseja carregar 7 abastecimentos realistas (Gasolina, Etanol e parcial) para explorar o Painel e a Calculadora Flex personalizada?';
-
-  openConfirmModal(
-    'Carregar Dados de Exemplo?',
-    msg,
-    'Carregar Exemplo',
-    'primary',
-    () => {
-      state.records = buildSampleDataset();
-      saveToStorage();
-      refreshAllViews();
-      showToast('Dados de exemplo carregados! Confira o Painel.', 'success');
-      switchTab('painel');
-    }
-  );
-}
 
 function askClearAllData() {
   if (state.records.length === 0) {

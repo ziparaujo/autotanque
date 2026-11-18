@@ -13,7 +13,7 @@ function renderDashboard() {
     hintBox.classList.remove('hidden');
     document.getElementById('dashboardHintTitle').textContent = 'Seu painel está pronto!';
     document.getElementById('dashboardHintBody').innerHTML =
-      'Registre seus abastecimentos na aba <strong>Abastecer</strong> ou carregue um conjunto de dados realista para testar gráficos e médias imediatamente.';
+      'Registre seus abastecimentos na aba <strong>Abastecer</strong> para acompanhar o consumo (km/L) e relatórios em tempo real.';
   } else if (closedCount === 0) {
     hintBox.classList.remove('hidden');
     document.getElementById('dashboardHintTitle').textContent = 'Falta apenas o próximo Tanque Cheio!';
