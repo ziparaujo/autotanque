@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#090d16" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>AutoTanque — Controle de Combustível</title>
+
+  <!-- Fonte Inter para excelente legibilidade em telas pequenas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            auto: {
+              950: '#090d16',
+              900: '#111827',
+              800: '#1e293b',
+              700: '#334155',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Ajustes finos mobile-first para toque rápido com uma mão */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overscroll-behavior-y: contain;
+    }
+    /* Ocultar barra de rolagem horizontal em chips mantendo scroll suave */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Transição suave para abas */
+    .tab-section {
+      animation: fadeSlide 0.18s ease-out;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Inputs numéricos grandes sem setinhas nativas */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 text-slate-900 dark:bg-auto-950 dark:text-slate-100 min-h-screen transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
+
+  <!-- Container Central Mobile-First -->
+  <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24">
+
+    <!-- CABEÇALHO FIXO -->
+    <header class="sticky top-0 z-30 backdrop-blur-md bg-white/90 dark:bg-auto-950/90 border-b border-slate-200 dark:border-slate-800/80 px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white">
+            <!-- Ícone Bomba de Combustível -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" x2="15" y1="22" y2="22"/>
+              <line x1="4" x2="14" y1="9" y2="9"/>
+              <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/>
+              <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-base font-extrabold tracking-tight leading-none">AutoTanque</h1>
+            <p id="headerSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pronto para registrar</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Botão rápido para dados de demonstração se estiver vazio -->
+          <button id="quickDemoBtn" onclick="askLoadSampleData()" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition">
+            Testar c/ Exemplo
+          </button>
+
+          <!-- Alternar Tema Claro / Escuro (útil sob sol forte no posto) -->
+          <button onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro" class="p-2.5 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 transition">
+            <!-- Ícone Sol (visível no escuro) -->
+            <svg id="iconSun" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden dark:block text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+            </svg>
+            <!-- Ícone Lua (visível no claro) -->
+            <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 block dark:hidden text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 px-4 pt-4">
+
+      <!-- ========================================== -->
+      <!-- ABA 1: ABASTECER (REGISTRO RÁPIDO)         -->
+      <!-- ========================================== -->
+      <section id="tab-abastecer" class="tab-section space-y-4">
+
+        <!-- Banner de Modo Edição (oculto por padrão) -->
+        <div id="editModeBanner" class="hidden rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3.5 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Editando Abastecimento</p>
+              <p class="text-xs text-slate-600 dark:text-slate-300">Altere os campos abaixo e toque em Atualizar</p>
+            </div>
+          </div>
+          <button type="button" onclick="cancelEditMode()" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-semibold hover:opacity-80">
+            Cancelar
+          </button>
+        </div>
+
+        <form id="fuelForm" onsubmit="handleSaveRefuel(event)" class="space-y-4" novalidate>
+
+          <!-- 1. Tipo de Combustível (Botões Grandes p/ Uma Mão) -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
+              Combustível
+            </label>
+            <div id="fuelTypeGrid" class="grid grid-cols-3 gap-2">
+              <!-- Preenchido dinamicamente ou estaticamente via JS -->
+            </div>
+          </div>
+
+          <!-- 2. Odômetro Atual -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="inputOdometer" class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Odômetro Atual (km)
+              </label>
+              <span id="liveDeltaKm" class="text-xs font-bold text-emerald-600 dark:text-emerald-400"></span>
+            </div>
+
+            <div class="relative">
+              <input
+                id="inputOdometer"
+                type="text"
+                inputmode="decimal"
+                placeholder="Ex: 45320"
+                autocomplete="off"
+                oninput="onOdometerInput()"
+                class="w-full text-2xl font-extrabold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl px-4 py-3.5 pr-14 outline-none transition"
+              />
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">km</span>
+            </div>
+
+            <!-- Referência do último odômetro + atalhos rápidos -->
+            <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span id="lastOdometerHint" class="text-slate-500 dark:text-slate-400">
+                Nenhum registro anterior
+              </span>
+              <div id="quickKmChips" class="hidden flex items-center gap-1.5">
+                <button type="button" onclick="addQuickKm(250)" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold hover:bg-emerald-500/20 active:scale-95 transition">+250</button>
+                <button type="button" onclick="addQuickKm(350)" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold hover:bg-emerald-500/20 active:scale-95 transition">+350</button>
+                <button type="button" onclick="addQuickKm(450)" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold hover:bg-emerald-500/20 active:scale-95 transition">+450</button>
+              </div>
+            </div>
+            <p id="odometerError" class="hidden mt-2 text-xs font-semibold text-rose-500"></p>
+          </div>
+
+          <!-- 3. Valores & Cálculo Automático Bidirecional -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Valores na Bomba
+              </span>
+              <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                Preencha 2 campos, o 3º é automático
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Valor Total Pago -->
+              <div class="col-span-2 sm:col-span-1">
+                <label for="inputTotal" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Valor Total Pago (R$)
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+                  <input
+                    id="inputTotal"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="200,00"
+                    autocomplete="off"
+                    oninput="handleSmartCalc('total')"
+                    class="w-full text-xl font-extrabold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl pl-10 pr-3 py-3 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <!-- Preço por Litro / m³ -->
+              <div>
+                <label id="labelUnitPrice" for="inputUnitPrice" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Preço / Litro (R$)
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                  <input
+                    id="inputUnitPrice"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="5,89"
+                    autocomplete="off"
+                    oninput="handleSmartCalc('unitPrice')"
+                    class="w-full text-lg font-bold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl pl-9 pr-3 py-3 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <!-- Quantidade (Litros ou m³) -->
+              <div class="col-span-1 sm:col-span-2">
+                <label id="labelQuantity" for="inputQuantity" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Quantidade (Litros)
+                </label>
+                <div class="relative">
+                  <input
+                    id="inputQuantity"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="33,96"
+                    autocomplete="off"
+                    oninput="handleSmartCalc('quantity')"
+                    class="w-full text-lg font-bold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl px-3.5 pr-10 py-3 outline-none transition"
+                  />
+                  <span id="unitSuffixBadge" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">L</span>
+                </div>
+              </div>
+            </div>
+            <p id="valuesError" class="hidden text-xs font-semibold text-rose-500"></p>
+          </div>
+
+          <!-- 4. Toggle Tanque Cheio + Data e Posto -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 shadow-sm border border-slate-200/80 dark:border-slate-800 space-y-4">
+
+            <!-- Chave Seletora Grande: Tanque Cheio -->
+            <button
+              type="button"
+              id="fullTankToggleBtn"
+              onclick="toggleFullTank()"
+              role="switch"
+              aria-checked="true"
+              class="w-full flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/10 border-2 border-emerald-500/40 text-left transition active:scale-[0.99]"
+            >
+              <div class="pr-3">
+                <div class="flex items-center gap-2">
+                  <span id="fullTankTitle" class="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">Tanque Cheio</span>
+                  <span id="fullTankTag" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-white">Recomendado</span>
+                </div>
+                <p id="fullTankDesc" class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                  Permite fechar o ciclo e calcular a média exata de km/L
+                </p>
+              </div>
+              <div id="fullTankSwitchTrack" class="w-14 h-8 flex items-center rounded-full p-1 bg-emerald-500 transition-colors shrink-0">
+                <div id="fullTankSwitchThumb" class="bg-white w-6 h-6 rounded-full shadow-md transform translate-x-6 transition-transform"></div>
+              </div>
+            </button>
+
+            <!-- Data e Posto/Observação -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label for="inputDate" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Data do Abastecimento
+                </label>
+                <input
+                  id="inputDate"
+                  type="date"
+                  onchange="onOdometerInput()"
+                  class="w-full text-sm font-semibold bg-slate-100 dark:bg-auto-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-3 outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label for="inputNotes" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  Posto / Observação (opcional)
+                </label>
+                <input
+                  id="inputNotes"
+                  type="text"
+                  list="stationsDatalist"
+                  maxlength="50"
+                  placeholder="Ex: Posto Ipiranga Centro"
+                  class="w-full text-sm font-medium bg-slate-100 dark:bg-auto-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-3 outline-none focus:border-emerald-500"
+                />
+                <datalist id="stationsDatalist"></datalist>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão Principal Salvar -->
+          <button
+            type="submit"
+            id="submitRefuelBtn"
+            class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-base shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6 9 17l-5-5"/>
+            </svg>
+            <span id="submitRefuelText">Registrar Abastecimento</span>
+          </button>
+        </form>
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- ABA 2: PAINEL (DASHBOARD & MÉTRICAS)       -->
+      <!-- ========================================== -->
+      <section id="tab-painel" class="tab-section hidden space-y-4">
+
+        <!-- Aviso amigável quando há poucos registros -->
+        <div id="dashboardEmptyHint" class="hidden rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4">
+          <div class="flex items-start gap-3">
+            <div class="p-2 rounded-xl bg-amber-500/20 text-amber-500 shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            </div>
+            <div class="text-xs space-y-1.5">
+              <p class="font-bold text-sm text-amber-700 dark:text-amber-300" id="dashboardHintTitle">Comece seus registros</p>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed" id="dashboardHintBody">
+                Para calcular o consumo exato (km/L), o app compara a quilometragem entre <strong>2 abastecimentos com Tanque Cheio</strong>. Quer ver o painel completo funcionando agora?
+              </p>
+              <button onclick="askLoadSampleData()" class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                Carregar Dados de Exemplo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Cards Principais (KPIs) -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Card 1: Gasto no Mês Atual -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Gasto no Mês</span>
+              <span class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center text-xs font-extrabold">R$</span>
+            </div>
+            <p id="kpiMonthSpend" class="text-2xl font-extrabold tracking-tight">R$ 0,00</p>
+            <p id="kpiMonthSub" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Mês atual</p>
+          </div>
+
+          <!-- Card 2: Consumo Médio Geral -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Consumo Geral</span>
+              <span class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+              </span>
+            </div>
+            <p id="kpiAvgConsumption" class="text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">--</p>
+            <p id="kpiAvgConsumptionSub" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Entre tanques cheios</p>
+          </div>
+
+          <!-- Card 3: Custo Médio por Km -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Custo por Km</span>
+              <span class="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-500 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+              </span>
+            </div>
+            <p id="kpiCostPerKm" class="text-2xl font-extrabold tracking-tight">--</p>
+            <p id="kpiCostPerKmSub" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Custo real rodado</p>
+          </div>
+
+          <!-- Card 4: Total Rodado -->
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Rodado</span>
+              <span class="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h13l4-3.5L18 6Z"/><path d="M12 13v8"/><path d="M12 3v3"/></svg>
+              </span>
+            </div>
+            <p id="kpiTotalDriven" class="text-2xl font-extrabold tracking-tight">0 km</p>
+            <p id="kpiTotalInvested" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Total pago: R$ 0,00</p>
+          </div>
+        </div>
+
+        <!-- Gráfico de Gasto Mensal (Últimos 6 Meses) -->
+        <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-extrabold">Evolução de Gastos Mensais</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Últimos 6 meses com base nos abastecimentos</p>
+            </div>
+            <span id="monthlyAvgBadge" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              Média: R$ 0
+            </span>
+          </div>
+          <div id="monthlyChartContainer" class="h-44 flex items-end justify-between gap-2 pt-6 pb-1 px-1">
+            <!-- Barras renderizadas via JS -->
+          </div>
+        </div>
+
+        <!-- Consumo Médio por Tipo de Combustível -->
+        <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+          <div class="mb-3">
+            <h2 class="text-sm font-extrabold">Desempenho por Combustível</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Média real calculada nos ciclos de tanque cheio</p>
+          </div>
+          <div id="fuelBreakdownList" class="space-y-3">
+            <!-- Renderizado via JS -->
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- ABA 3: HISTÓRICO DE ABASTECIMENTOS         -->
+      <!-- ========================================== -->
+      <section id="tab-historico" class="tab-section hidden space-y-3.5">
+
+        <!-- Barra de Busca e Filtro por Combustível -->
+        <div class="bg-white dark:bg-auto-900 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+          <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input
+              id="historySearchInput"
+              type="text"
+              placeholder="Buscar posto, data ou observação..."
+              oninput="renderHistory()"
+              class="w-full text-sm bg-slate-100 dark:bg-auto-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2.5 outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div id="historyFilterChips" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <!-- Chips renderizados via JS -->
+          </div>
+        </div>
+
+        <!-- Lista de Registros -->
+        <div id="historyListContainer" class="space-y-3">
+          <!-- Cards renderizados via JS -->
+        </div>
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- ABA 4: CALCULADORA FLEX & BACKUP           -->
+      <!-- ========================================== -->
+      <section id="tab-calc" class="tab-section hidden space-y-4">
+
+        <!-- Card 1: Calculadora Flex Inteligente -->
+        <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h2 class="text-base font-extrabold flex items-center gap-2">
+                <span>Calculadora Flex Inteligente</span>
+              </h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Descubra na bomba qual combustível entrega o menor R$/km
+              </p>
+            </div>
+            <span id="flexRatioModeBadge" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+              Padrão 70%
+            </span>
+          </div>
+
+          <!-- Seletor de Modo de Paridade (aparece destaque se houver histórico real) -->
+          <div id="flexSmartBanner" class="rounded-xl p-3 bg-slate-100 dark:bg-auto-950 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+            <!-- Atualizado via JS -->
+          </div>
+
+          <!-- Inputs de Preço na Bomba -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="calcEtanolPrice" class="block text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+                Etanol na Bomba (R$/L)
+              </label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                <input
+                  id="calcEtanolPrice"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="3,89"
+                  oninput="evaluateFlexCalculator()"
+                  class="w-full text-xl font-extrabold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-emerald-500 rounded-xl pl-9 pr-3 py-3 outline-none transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="calcGasolinaPrice" class="block text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">
+                Gasolina na Bomba (R$/L)
+              </label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                <input
+                  id="calcGasolinaPrice"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="5,89"
+                  oninput="evaluateFlexCalculator()"
+                  class="w-full text-xl font-extrabold bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-3 outline-none transition"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Tamanho do Tanque para simular economia por tanque cheio -->
+          <div class="flex items-center justify-between gap-3 pt-1">
+            <label for="calcTankSize" class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Capacidade do seu tanque: <strong id="calcTankSizeLabel" class="text-slate-800 dark:text-slate-100">50 L</strong>
+            </label>
+            <input
+              id="calcTankSize"
+              type="range"
+              min="35"
+              max="80"
+              step="1"
+              value="50"
+              oninput="updateTankSizeSlider(this.value)"
+              class="w-36 accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          <!-- Resultado da Calculadora Flex -->
+          <div id="flexResultCard" class="rounded-2xl p-4 bg-slate-100 dark:bg-auto-950 border border-slate-200 dark:border-slate-800">
+            <!-- Preenchido via JS -->
+          </div>
+        </div>
+
+        <!-- Card 2: Segurança dos Dados & Backup Local -->
+        <div class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-extrabold">Backup e Dados no Aparelho</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Seus dados ficam salvos offline neste navegador
+              </p>
+            </div>
+            <span id="storageCountBadge" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              0 registros
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Exportar CSV -->
+            <button
+              type="button"
+              onclick="exportCSV()"
+              class="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-bold text-sm transition active:scale-[0.98]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+              Exportar Planilha (CSV)
+            </button>
+
+            <!-- Exportar Backup JSON -->
+            <button
+              type="button"
+              onclick="exportJSON()"
+              class="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 font-bold text-sm transition active:scale-[0.98]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Baixar Backup (JSON)
+            </button>
+
+            <!-- Importar Backup JSON -->
+            <label class="sm:col-span-2 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-sm cursor-pointer transition active:scale-[0.98]">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              <span>Restaurar Backup (Importar JSON)</span>
+              <input id="importJsonInput" type="file" accept=".json,application/json" class="hidden" onchange="handleImportJSON(event)" />
+            </label>
+          </div>
+
+          <hr class="border-slate-200 dark:border-slate-800" />
+
+          <!-- Ferramentas de Teste e Limpeza Protegida -->
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <button
+              type="button"
+              onclick="askLoadSampleData()"
+              class="flex-1 py-3 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition"
+            >
+              Carregar Dados de Exemplo
+            </button>
+            <button
+              type="button"
+              onclick="askClearAllData()"
+              class="flex-1 py-3 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold transition"
+            >
+              Apagar Todos os Dados
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- NAVEGAÇÃO INFERIOR FIXA (BOTTOM NAV)       -->
+  <!-- ========================================== -->
+  <nav aria-label="Navegação Principal" class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-auto-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800">
+    <div class="max-w-lg mx-auto grid grid-cols-4 px-2 py-1.5">
+
+      <!-- Aba 1: Abastecer -->
+      <button type="button" onclick="switchTab('abastecer')" id="nav-abastecer" class="nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>
+        </svg>
+        <span class="text-[11px] font-bold">Abastecer</span>
+      </button>
+
+      <!-- Aba 2: Painel -->
+      <button type="button" onclick="switchTab('painel')" id="nav-painel" class="nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>
+        </svg>
+        <span class="text-[11px] font-bold">Painel</span>
+      </button>
+
+      <!-- Aba 3: Histórico -->
+      <button type="button" onclick="switchTab('historico')" id="nav-historico" class="nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>
+        </svg>
+        <span class="text-[11px] font-bold">Histórico</span>
+      </button>
+
+      <!-- Aba 4: Calculadora / Backup -->
+      <button type="button" onclick="switchTab('calc')" id="nav-calc" class="nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>
+        </svg>
+        <span class="text-[11px] font-bold">Flex & Dados</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- MODAL CUSTOMIZADO DE CONFIRMAÇÃO           -->
+  <!-- ========================================== -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-auto-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-start gap-3">
+        <div id="confirmIconBox" class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        </div>
+        <div>
+          <h3 id="confirmModalTitle" class="text-base font-extrabold">Confirmar Ação</h3>
+          <p id="confirmModalDesc" class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2.5 pt-1">
+        <button type="button" onclick="closeConfirmModal()" class="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-sm font-bold hover:opacity-85 transition">
+          Cancelar
+        </button>
+        <button type="button" id="confirmModalActionBtn" class="flex-1 py-3 rounded-xl bg-emerald-500 text-white text-sm font-extrabold hover:opacity-90 transition">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICAÇÃO FLUTUANTE -->
+  <div id="toastContainer" class="fixed top-16 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div id="toastBox" class="hidden pointer-events-auto max-w-sm w-full rounded-2xl px-4 py-3 shadow-xl border text-sm font-bold flex items-center gap-2.5 transition-all">
+      <span id="toastText"></span>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- LÓGICA COMPLETA DO APLICATIVO (JAVASCRIPT) -->
+  <!-- ========================================== -->
+  <script>
+    /**
+     * Chaves de armazenamento local (localStorage)
+     */
+    const STORAGE_KEY = 'autotanque_v1_records';
+    const SETTINGS_KEY = 'autotanque_v1_settings';
+
+    /**
+     * Catálogo de combustíveis suportados
+     */
+    const FUEL_TYPES = {
+      gasolina: {
+        id: 'gasolina',
+        label: 'Gasolina',
+        short: 'Gasolina',
+        unit: 'L',
+        unitName: 'Litros',
+        activeClass: 'border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300',
+        badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+        barClass: 'bg-amber-500'
+      },
+      aditivada: {
+        id: 'aditivada',
+        label: 'Aditivada',
+        short: 'Aditivada',
+        unit: 'L',
+        unitName: 'Litros',
+        activeClass: 'border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-300',
+        badgeClass: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30',
+        barClass: 'bg-sky-500'
+      },
+      etanol: {
+        id: 'etanol',
+        label: 'Etanol',
+        short: 'Etanol',
+        unit: 'L',
+        unitName: 'Litros',
+        activeClass: 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+        badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+        barClass: 'bg-emerald-500'
+      },
+      gnv: {
+        id: 'gnv',
+        label: 'GNV (m³)',
+        short: 'GNV',
+        unit: 'm³',
+        unitName: 'Metros Cúbicos (m³)',
+        activeClass: 'border-purple-500 bg-purple-500/15 text-purple-700 dark:text-purple-300',
+        badgeClass: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
+        barClass: 'bg-purple-500'
+      },
+      diesel: {
+        id: 'diesel',
+        label: 'Diesel',
+        short: 'Diesel',
+        unit: 'L',
+        unitName: 'Litros',
+        activeClass: 'border-orange-500 bg-orange-500/15 text-orange-700 dark:text-orange-300',
+        badgeClass: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',
+        barClass: 'bg-orange-500'
+      }
+    };
+
+    /**
+     * Estado em memória do aplicativo
+     */
+    let state = {
+      records: [],
+      activeTab: 'abastecer',
+      selectedFuel: 'gasolina',
+      isFullTank: true,
+      editingId: null,
+      historyFilter: 'todos',
+      calcAnchorField: 'total', // Controla cálculo bidirecional amigável ('total' ou 'quantity')
+      useCustomFlexRatio: true,
+      tankCapacity: 50,
+      theme: 'dark'
+    };
+
+    let confirmCallback = null;
+    let toastTimer = null;
+
+    /* ======================================================================
+     * UTILITÁRIOS DE FORMATAÇÃO E CONVERSÃO NUMÉRICA (PT-BR)
+     * ====================================================================== */
+
+    /**
+     * Converte textos digitados no celular ("5,89" ou "5.89" ou "45.320") em número float seguro
+     */
+    function parseBrFloat(val) {
+      if (val === null || val === undefined) return NaN;
+      let str = String(val).trim().replace(/\s/g, '');
+      if (!str) return NaN;
+      // Se tiver ponto e vírgula (ex: 1.250,50), remove pontos de milhar e troca vírgula por ponto
+      if (str.includes(',') && str.includes('.')) {
+        str = str.replace(/\./g, '').replace(',', '.');
+      } else if (str.includes(',')) {
+        str = str.replace(',', '.');
+      }
+      const num = parseFloat(str);
+      return Number.isFinite(num) ? num : NaN;
+    }
+
+    function formatCurrency(val) {
+      if (!Number.isFinite(val)) return 'R$ 0,00';
+      return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function formatNumber(val, decimals = 2) {
+      if (!Number.isFinite(val)) return '--';
+      return val.toLocaleString('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function formatIntKm(val) {
+      if (!Number.isFinite(val)) return '0';
+      return Math.round(val).toLocaleString('pt-BR');
+    }
+
+    function getTodayISO() {
+      const now = new Date();
+      const tzOffset = now.getTimezoneOffset() * 60000;
+      return new Date(now.getTime() - tzOffset).toISOString().slice(0, 10);
+    }
+
+    function formatDateBr(isoDate) {
+      if (!isoDate) return '';
+      const parts = isoDate.split('-');
+      if (parts.length !== 3) return isoDate;
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    function generateId() {
+      return 'ab_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    /* ======================================================================
+     * PERSISTÊNCIA LOCAL (LOCALSTORAGE)
+     * ====================================================================== */
+
+    function loadFromStorage() {
+      try {
+        const rawRecords = localStorage.getItem(STORAGE_KEY);
+        if (rawRecords) {
+          const parsed = JSON.parse(rawRecords);
+          if (Array.isArray(parsed)) {
+            state.records = parsed;
+          }
+        }
+        const rawSettings = localStorage.getItem(SETTINGS_KEY);
+        if (rawSettings) {
+          const s = JSON.parse(rawSettings);
+          if (s.theme) state.theme = s.theme;
+          if (s.selectedFuel && FUEL_TYPES[s.selectedFuel]) state.selectedFuel = s.selectedFuel;
+          if (s.tankCapacity) state.tankCapacity = Number(s.tankCapacity) || 50;
+          if (typeof s.useCustomFlexRatio === 'boolean') state.useCustomFlexRatio = s.useCustomFlexRatio;
+        }
+      } catch (err) {
+        console.error('Erro ao carregar localStorage:', err);
+      }
+      applyTheme();
+    }
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.records));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+          theme: state.theme,
+          selectedFuel: state.selectedFuel,
+          tankCapacity: state.tankCapacity,
+          useCustomFlexRatio: state.useCustomFlexRatio
+        }));
+      } catch (err) {
+        showToast('Erro ao salvar no aparelho (memória cheia).', 'error');
+      }
+    }
+
+    function applyTheme() {
+      const htmlEl = document.documentElement;
+      if (state.theme === 'dark') {
+        htmlEl.classList.add('dark');
+      } else {
+        htmlEl.classList.remove('dark');
+      }
+    }
+
+    function toggleTheme() {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      applyTheme();
+      saveToStorage();
+    }
+
+    /* ======================================================================
+     * MOTOR DE CÁLCULO REAL DE CONSUMO (KM/L, KM/M³ E R$/KM)
+     * ====================================================================== */
+
+    /**
+     * Ordena registros por odômetro crescente (desempate por data) e calcula:
+     * - Distância percorrida desde o último abastecimento
+     * - Ciclos fechados entre abastecimentos com "Tanque Cheio", somando
+     *   automaticamente os litros e valores de abastecimentos parciais intermediários!
+     * - Separa ciclos de tanque líquido (L) dos ciclos de cilindro GNV (m³) para
+     *   não misturar unidades diferentes no mesmo veículo.
+     */
+    function computeTelemetry() {
+      const sorted = [...state.records].sort((a, b) => {
+        if (a.odometer !== b.odometer) return a.odometer - b.odometer;
+        return (a.date || '').localeCompare(b.date || '');
+      });
+
+      const enrichedMap = {};
+
+      // Estado acumulador separado por sistema de alimentação: 'liquid' (L) vs 'gnv' (m³)
+      const trackers = {
+        liquid: {
+          lastFullRecord: null,
+          accQty: 0,
+          accCost: 0,
+          partialFuels: new Set()
+        },
+        gnv: {
+          lastFullRecord: null,
+          accQty: 0,
+          accCost: 0,
+          partialFuels: new Set()
+        }
+      };
+
+      const fuelStats = {};
+      Object.keys(FUEL_TYPES).forEach(k => {
+        fuelStats[k] = { distance: 0, qty: 0, cost: 0, cycles: 0 };
+      });
+
+      let totalLiquidCycleDist = 0;
+      let totalLiquidCycleQty = 0;
+      let totalLiquidCycleCost = 0;
+
+      let totalGnvCycleDist = 0;
+      let totalGnvCycleQty = 0;
+      let totalGnvCycleCost = 0;
+
+      sorted.forEach((rec, index) => {
+        const prevOverall = index > 0 ? sorted[index - 1] : null;
+        const stepDeltaKm = prevOverall ? Math.max(0, rec.odometer - prevOverall.odometer) : null;
+
+        const streamKey = rec.fuelType === 'gnv' ? 'gnv' : 'liquid';
+        const tr = trackers[streamKey];
+
+        let cycleInfo = {
+          status: 'anchor', // 'anchor' | 'partial' | 'closed'
+          cycleDistance: null,
+          cycleQty: null,
+          cycleCost: null,
+          kmPerUnit: null,
+          costPerKm: null,
+          burnedFuelType: null
+        };
+
+        if (!tr.lastFullRecord) {
+          // Antes do primeiro tanque cheio desse sistema
+          if (rec.fullTank) {
+            tr.lastFullRecord = rec;
+            tr.accQty = 0;
+            tr.accCost = 0;
+            tr.partialFuels.clear();
+            cycleInfo.status = 'anchor';
+          } else {
+            cycleInfo.status = 'no_anchor';
+          }
+        } else {
+          // Já temos um tanque cheio anterior servindo de referência!
+          tr.accQty += rec.quantity;
+          tr.accCost += rec.totalValue;
+
+          if (!rec.fullTank) {
+            tr.partialFuels.add(rec.fuelType);
+            cycleInfo.status = 'partial';
+          } else {
+            const dist = rec.odometer - tr.lastFullRecord.odometer;
+            if (dist > 0 && tr.accQty > 0) {
+              const kmPerUnit = dist / tr.accQty;
+              const costPerKm = tr.accCost / dist;
+
+              // O combustível efetivamente consumido no trecho saiu do tanque cheio anterior
+              // (+ eventuais parciais intermediários). Se houve mistura líquida no meio, marcamos 'misto'.
+              const baseFuel = tr.lastFullRecord.fuelType;
+              const hadDifferentPartial = Array.from(tr.partialFuels).some(f => f !== baseFuel);
+              const attributedFuel = hadDifferentPartial ? 'misto' : baseFuel;
+
+              cycleInfo = {
+                status: 'closed',
+                cycleDistance: dist,
+                cycleQty: tr.accQty,
+                cycleCost: tr.accCost,
+                kmPerUnit,
+                costPerKm,
+                burnedFuelType: attributedFuel
+              };
+
+              if (streamKey === 'liquid') {
+                totalLiquidCycleDist += dist;
+                totalLiquidCycleQty += tr.accQty;
+                totalLiquidCycleCost += tr.accCost;
+              } else {
+                totalGnvCycleDist += dist;
+                totalGnvCycleQty += tr.accQty;
+                totalGnvCycleCost += tr.accCost;
+              }
+
+              if (attributedFuel !== 'misto' && fuelStats[attributedFuel]) {
+                fuelStats[attributedFuel].distance += dist;
+                fuelStats[attributedFuel].qty += tr.accQty;
+                fuelStats[attributedFuel].cost += tr.accCost;
+                fuelStats[attributedFuel].cycles += 1;
+              }
+            }
+            // Este tanque cheio passa a ser a nova âncora para o próximo ciclo!
+            tr.lastFullRecord = rec;
+            tr.accQty = 0;
+            tr.accCost = 0;
+            tr.partialFuels.clear();
+          }
+        }
+
+        enrichedMap[rec.id] = {
+          ...rec,
+          stepDeltaKm,
+          ...cycleInfo
+        };
+      });
+
+      const totalInvested = sorted.reduce((acc, r) => acc + (r.totalValue || 0), 0);
+      const totalDriven = sorted.length >= 2
+        ? Math.max(0, sorted[sorted.length - 1].odometer - sorted[0].odometer)
+        : 0;
+
+      // Médias gerais
+      const avgLiquidKmL = totalLiquidCycleQty > 0 ? (totalLiquidCycleDist / totalLiquidCycleQty) : null;
+      const avgGnvKmM3 = totalGnvCycleQty > 0 ? (totalGnvCycleDist / totalGnvCycleQty) : null;
+
+      const combinedCycleDist = totalLiquidCycleDist + totalGnvCycleDist;
+      const combinedCycleCost = totalLiquidCycleCost + totalGnvCycleCost;
+      const avgCostPerKm = combinedCycleDist > 0 ? (combinedCycleCost / combinedCycleDist) : null;
+
+      return {
+        sortedAsc: sorted,
+        enrichedMap,
+        fuelStats,
+        totalInvested,
+        totalDriven,
+        avgLiquidKmL,
+        avgGnvKmM3,
+        avgCostPerKm,
+        latestRecord: sorted.length > 0 ? sorted[sorted.length - 1] : null
+      };
+    }
+
+    /* ======================================================================
+     * NAVEGAÇÃO ENTRE ABAS
+     * ====================================================================== */
+
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+
+      ['abastecer', 'painel', 'historico', 'calc'].forEach(t => {
+        const sec = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`nav-${t}`);
+        if (t === tabName) {
+          sec.classList.remove('hidden');
+          btn.className = 'nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
+        } else {
+          sec.classList.add('hidden');
+          btn.className = 'nav-btn flex flex-col items-center justify-center py-2 rounded-xl transition text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200';
+        }
+      });
+
+      refreshAllViews();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ======================================================================
+     * ABA 1: FORMULÁRIO INTELIGENTE DE ABASTECIMENTO
+     * ====================================================================== */
+
+    function renderFuelSelector() {
+      const grid = document.getElementById('fuelTypeGrid');
+      const keys = Object.keys(FUEL_TYPES);
+
+      grid.innerHTML = keys.map((key, idx) => {
+        const f = FUEL_TYPES[key];
+        const isSelected = state.selectedFuel === key;
+        const spanClass = idx === keys.length - 1 && keys.length % 3 !== 0 ? 'col-span-1' : '';
+        return `
+          <button
+            type="button"
+            onclick="selectFuelType('${key}')"
+            class="${spanClass} py-3 px-2 rounded-xl border-2 font-bold text-sm transition active:scale-95 flex flex-col items-center justify-center gap-0.5 ${
+              isSelected
+                ? f.activeClass
+                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-auto-950 text-slate-600 dark:text-slate-400'
+            }"
+          >
+            <span>${f.short}</span>
+            <span class="text-[10px] opacity-75 font-medium">${f.unit === 'm³' ? 'em m³' : 'Litros'}</span>
+          </button>
+        `;
+      }).join('');
+
+      // Ajustar rótulos de unidade (Litros vs m³)
+      const currentFuel = FUEL_TYPES[state.selectedFuel];
+      document.getElementById('labelUnitPrice').textContent = `Preço / ${currentFuel.unit} (R$)`;
+      document.getElementById('labelQuantity').textContent = `Quantidade (${currentFuel.unitName})`;
+      document.getElementById('unitSuffixBadge').textContent = currentFuel.unit;
+      document.getElementById('fullTankTitle').textContent = currentFuel.id === 'gnv' ? 'Cilindro Cheio' : 'Tanque Cheio';
+      document.getElementById('fullTankDesc').textContent = currentFuel.id === 'gnv'
+        ? 'Permite fechar o ciclo e calcular a média exata de km/m³'
+        : 'Permite fechar o ciclo e calcular a média exata de km/L';
+
+      // Se não estiver editando e o campo Preço/L estiver vazio, sugere último preço pago desse combustível
+      if (!state.editingId) {
+        const priceInput = document.getElementById('inputUnitPrice');
+        const lastSameFuel = [...state.records]
+          .reverse()
+          .find(r => r.fuelType === state.selectedFuel && r.unitPrice > 0);
+        if (lastSameFuel && !priceInput.value) {
+          priceInput.placeholder = formatNumber(lastSameFuel.unitPrice, 2);
+        }
+      }
+    }
+
+    function selectFuelType(fuelKey) {
+      state.selectedFuel = fuelKey;
+      renderFuelSelector();
+      saveToStorage();
+    }
+
+    function toggleFullTank(forceValue) {
+      state.isFullTank = typeof forceValue === 'boolean' ? forceValue : !state.isFullTank;
+      const btn = document.getElementById('fullTankToggleBtn');
+      const track = document.getElementById('fullTankSwitchTrack');
+      const thumb = document.getElementById('fullTankSwitchThumb');
+      const tag = document.getElementById('fullTankTag');
+      const title = document.getElementById('fullTankTitle');
+
+      btn.setAttribute('aria-checked', String(state.isFullTank));
+
+      if (state.isFullTank) {
+        btn.className = 'w-full flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/40 text-left transition active:scale-[0.99]';
+        track.className = 'w-14 h-8 flex items-center rounded-full p-1 bg-emerald-500 transition-colors shrink-0';
+        thumb.className = 'bg-white w-6 h-6 rounded-full shadow-md transform translate-x-6 transition-transform';
+        title.className = 'text-sm font-extrabold text-emerald-700 dark:text-emerald-300';
+        tag.textContent = 'Ativo';
+        tag.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-white';
+      } else {
+        btn.className = 'w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-100 dark:bg-auto-950 border-2 border-slate-200 dark:border-slate-800 text-left transition active:scale-[0.99]';
+        track.className = 'w-14 h-8 flex items-center rounded-full p-1 bg-slate-300 dark:bg-slate-700 transition-colors shrink-0';
+        thumb.className = 'bg-white w-6 h-6 rounded-full shadow-md transform translate-x-0 transition-transform';
+        title.className = 'text-sm font-extrabold text-slate-700 dark:text-slate-300';
+        tag.textContent = 'Parcial';
+        tag.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
+      }
+    }
+
+    /**
+     * Cálculo automático bidirecional entre Valor Total, Preço/L e Quantidade
+     */
+    function handleSmartCalc(changedField) {
+      const totalEl = document.getElementById('inputTotal');
+      const priceEl = document.getElementById('inputUnitPrice');
+      const qtyEl = document.getElementById('inputQuantity');
+      document.getElementById('valuesError').classList.add('hidden');
+
+      const totalVal = parseBrFloat(totalEl.value);
+      const priceVal = parseBrFloat(priceEl.value);
+      const qtyVal = parseBrFloat(qtyEl.value);
+
+      if (changedField === 'total') {
+        state.calcAnchorField = 'total';
+        if (totalVal > 0 && priceVal > 0) {
+          qtyEl.value = formatNumber(totalVal / priceVal, 2);
+        } else if (totalVal > 0 && qtyVal > 0 && !priceEl.value.trim()) {
+          priceEl.value = formatNumber(totalVal / qtyVal, 2);
+        }
+      } else if (changedField === 'quantity') {
+        state.calcAnchorField = 'quantity';
+        if (qtyVal > 0 && priceVal > 0) {
+          totalEl.value = formatNumber(qtyVal * priceVal, 2);
+        } else if (qtyVal > 0 && totalVal > 0 && !priceEl.value.trim()) {
+          priceEl.value = formatNumber(totalVal / qtyVal, 2);
+        }
+      } else if (changedField === 'unitPrice') {
+        if (priceVal > 0) {
+          if (state.calcAnchorField === 'total' && totalVal > 0) {
+            qtyEl.value = formatNumber(totalVal / priceVal, 2);
+          } else if (state.calcAnchorField === 'quantity' && qtyVal > 0) {
+            totalEl.value = formatNumber(qtyVal * priceVal, 2);
+          } else if (totalVal > 0) {
+            qtyEl.value = formatNumber(totalVal / priceVal, 2);
+          } else if (qtyVal > 0) {
+            totalEl.value = formatNumber(qtyVal * priceVal, 2);
+          }
+        }
+      }
+    }
+
+    function updateOdometerReferenceUI() {
+      const telemetry = computeTelemetry();
+      const hintEl = document.getElementById('lastOdometerHint');
+      const chipsEl = document.getElementById('quickKmChips');
+
+      // Excluir o próprio registro se estivermos editando
+      const others = telemetry.sortedAsc.filter(r => r.id !== state.editingId);
+      const latest = others.length > 0 ? others[others.length - 1] : null;
+
+      if (latest) {
+        hintEl.innerHTML = `Último: <strong class="text-slate-800 dark:text-slate-200">${formatIntKm(latest.odometer)} km</strong> (${formatDateBr(latest.date)})`;
+        if (!state.editingId) {
+          chipsEl.classList.remove('hidden');
+        } else {
+          chipsEl.classList.add('hidden');
+        }
+      } else {
+        hintEl.textContent = '1º registro de odômetro do veículo';
+        chipsEl.classList.add('hidden');
+      }
+      onOdometerInput();
+    }
+
+    function addQuickKm(delta) {
+      const telemetry = computeTelemetry();
+      const latest = telemetry.latestRecord;
+      if (!latest) return;
+      const inputEl = document.getElementById('inputOdometer');
+      const currentTyped = parseBrFloat(inputEl.value);
+      const base = Number.isFinite(currentTyped) && currentTyped >= latest.odometer ? currentTyped : latest.odometer;
+      inputEl.value = Math.round(base + delta);
+      onOdometerInput();
+    }
+
+    function onOdometerInput() {
+      const odoEl = document.getElementById('inputOdometer');
+      const dateEl = document.getElementById('inputDate');
+      const deltaBadge = document.getElementById('liveDeltaKm');
+      const errEl = document.getElementById('odometerError');
+
+      errEl.classList.add('hidden');
+      deltaBadge.textContent = '';
+
+      const typedOdo = parseBrFloat(odoEl.value);
+      if (!Number.isFinite(typedOdo) || typedOdo <= 0) return;
+
+      const selectedDate = dateEl.value || getTodayISO();
+      const others = state.records
+        .filter(r => r.id !== state.editingId)
+        .sort((a, b) => a.odometer - b.odometer);
+
+      if (others.length === 0) return;
+
+      // Encontrar registros anteriores por data para validar coerência cronológica
+      const earlierOrSameDate = others.filter(r => r.date <= selectedDate);
+      const laterDate = others.filter(r => r.date > selectedDate);
+
+      if (earlierOrSameDate.length > 0) {
+        const refPrev = earlierOrSameDate[earlierOrSameDate.length - 1];
+        const diff = typedOdo - refPrev.odometer;
+        if (diff > 0) {
+          deltaBadge.textContent = `+${formatIntKm(diff)} km rodados`;
+          deltaBadge.className = 'text-xs font-bold text-emerald-600 dark:text-emerald-400';
+        } else if (selectedDate > refPrev.date && diff <= 0) {
+          deltaBadge.textContent = 'Abaixo do anterior';
+          deltaBadge.className = 'text-xs font-bold text-rose-500';
+        }
+      } else if (laterDate.length > 0) {
+        // Registro retroativo anterior a todos os existentes
+        const firstNext = laterDate[0];
+        if (typedOdo < firstNext.odometer) {
+          deltaBadge.textContent = 'Registro retroativo válido';
+          deltaBadge.className = 'text-xs font-bold text-amber-500';
+        }
+      }
+    }
+
+    function validateRefuelForm() {
+      const odoVal = parseBrFloat(document.getElementById('inputOdometer').value);
+      const totalVal = parseBrFloat(document.getElementById('inputTotal').value);
+      const priceVal = parseBrFloat(document.getElementById('inputUnitPrice').value);
+      const qtyVal = parseBrFloat(document.getElementById('inputQuantity').value);
+      const dateVal = document.getElementById('inputDate').value || getTodayISO();
+
+      const odoErr = document.getElementById('odometerError');
+      const valErr = document.getElementById('valuesError');
+      odoErr.classList.add('hidden');
+      valErr.classList.add('hidden');
+
+      if (!Number.isFinite(odoVal) || odoVal <= 0) {
+        odoErr.textContent = 'Informe o odômetro atual do veículo em quilômetros.';
+        odoErr.classList.remove('hidden');
+        return null;
+      }
+
+      // Validação cronológica inteligente (permite retroativo se a data for anterior!)
+      const others = state.records.filter(r => r.id !== state.editingId);
+      const strictlyEarlier = others.filter(r => r.date < dateVal);
+      const strictlyLater = others.filter(r => r.date > dateVal);
+
+      if (strictlyEarlier.length > 0) {
+        const maxEarlierOdo = Math.max(...strictlyEarlier.map(r => r.odometer));
+        if (odoVal <= maxEarlierOdo) {
+          odoErr.textContent = `Para a data ${formatDateBr(dateVal)}, o odômetro deve ser maior que ${formatIntKm(maxEarlierOdo)} km (ou ajuste a data para lançamento retroativo).`;
+          odoErr.classList.remove('hidden');
+          return null;
+        }
+      }
+
+      // Se for na mesma data do último registro e não for retroativo, evita digitação menor por engano
+      const sameDayRecords = others.filter(r => r.date === dateVal);
+      if (sameDayRecords.length > 0 && strictlyLater.length === 0 && !state.editingId) {
+        const maxSameDay = Math.max(...sameDayRecords.map(r => r.odometer));
+        if (odoVal < maxSameDay) {
+          odoErr.textContent = `Já existe um registro hoje com ${formatIntKm(maxSameDay)} km. Confira o odômetro ou a data.`;
+          odoErr.classList.remove('hidden');
+          return null;
+        }
+      }
+
+      if (strictlyLater.length > 0) {
+        const minLaterOdo = Math.min(...strictlyLater.map(r => r.odometer));
+        if (odoVal >= minLaterOdo) {
+          odoErr.textContent = `Para registro retroativo em ${formatDateBr(dateVal)}, o odômetro precisa ser menor que ${formatIntKm(minLaterOdo)} km.`;
+          odoErr.classList.remove('hidden');
+          return null;
+        }
+      }
+
+      if (!Number.isFinite(totalVal) || totalVal <= 0 || !Number.isFinite(priceVal) || priceVal <= 0 || !Number.isFinite(qtyVal) || qtyVal <= 0) {
+        valErr.textContent = 'Preencha o Valor Pago e o Preço/Litro (ou Quantidade) com valores maiores que zero.';
+        valErr.classList.remove('hidden');
+        return null;
+      }
+
+      return {
+        odometer: Math.round(odoVal * 10) / 10,
+        totalValue: Math.round(totalVal * 100) / 100,
+        unitPrice: Math.round(priceVal * 1000) / 1000,
+        quantity: Math.round(qtyVal * 100) / 100,
+        date: dateVal,
+        notes: document.getElementById('inputNotes').value.trim(),
+        fuelType: state.selectedFuel,
+        fullTank: state.isFullTank
+      };
+    }
+
+    function handleSaveRefuel(event) {
+      event.preventDefault();
+      const validData = validateRefuelForm();
+      if (!validData) return;
+
+      if (state.editingId) {
+        const idx = state.records.findIndex(r => r.id === state.editingId);
+        if (idx !== -1) {
+          state.records[idx] = { ...state.records[idx], ...validData };
+        }
+        cancelEditMode(false);
+        saveToStorage();
+        refreshAllViews();
+        showToast('Abastecimento atualizado com sucesso!', 'success');
+        switchTab('historico');
+      } else {
+        const newRecord = {
+          id: generateId(),
+          createdAt: Date.now(),
+          ...validData
+        };
+        state.records.push(newRecord);
+        saveToStorage();
+        resetRefuelForm();
+        refreshAllViews();
+
+        // Mostrar feedback inteligente se fechou ciclo de consumo!
+        const telemetry = computeTelemetry();
+        const savedEnriched = telemetry.enrichedMap[newRecord.id];
+        if (savedEnriched && savedEnriched.status === 'closed') {
+          const u = FUEL_TYPES[newRecord.fuelType].unit;
+          showToast(`Salvo! Média do ciclo: ${formatNumber(savedEnriched.kmPerUnit, 1)} km/${u}`, 'success');
+        } else {
+          showToast('Abastecimento registrado no aparelho!', 'success');
+        }
+      }
+    }
+
+    function resetRefuelForm() {
+      document.getElementById('inputOdometer').value = '';
+      document.getElementById('inputTotal').value = '';
+      document.getElementById('inputUnitPrice').value = '';
+      document.getElementById('inputQuantity').value = '';
+      document.getElementById('inputNotes').value = '';
+      document.getElementById('inputDate').value = getTodayISO();
+      document.getElementById('odometerError').classList.add('hidden');
+      document.getElementById('valuesError').classList.add('hidden');
+      toggleFullTank(true);
+      renderFuelSelector();
+      updateOdometerReferenceUI();
+    }
+
+    function startEditRecord(id) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+
+      state.editingId = rec.id;
+      state.selectedFuel = rec.fuelType;
+
+      document.getElementById('editModeBanner').classList.remove('hidden');
+      document.getElementById('submitRefuelText').textContent = 'Salvar Alterações';
+
+      renderFuelSelector();
+      toggleFullTank(Boolean(rec.fullTank));
+
+      document.getElementById('inputOdometer').value = rec.odometer;
+      document.getElementById('inputTotal').value = formatNumber(rec.totalValue, 2);
+      document.getElementById('inputUnitPrice').value = formatNumber(rec.unitPrice, 2);
+      document.getElementById('inputQuantity').value = formatNumber(rec.quantity, 2);
+      document.getElementById('inputDate').value = rec.date;
+      document.getElementById('inputNotes').value = rec.notes || '';
+
+      switchTab('abastecer');
+      updateOdometerReferenceUI();
+    }
+
+    function cancelEditMode(resetFields = true) {
+      state.editingId = null;
+      document.getElementById('editModeBanner').classList.add('hidden');
+      document.getElementById('submitRefuelText').textContent = 'Registrar Abastecimento';
+      if (resetFields) {
+        resetRefuelForm();
+      }
+    }
+
+    /* ======================================================================
+     * ABA 2: PAINEL (DASHBOARD, GRÁFICO MENSAL E DESEMPENHO POR COMBUSTÍVEL)
+     * ====================================================================== */
+
+    function renderDashboard() {
+      const telemetry = computeTelemetry();
+      const nowIsoMonth = getTodayISO().slice(0, 7); // YYYY-MM
+
+      // Aviso orientativo quando há menos de 2 tanques cheios
+      const closedCount = Object.values(telemetry.enrichedMap).filter(r => r.status === 'closed').length;
+      const hintBox = document.getElementById('dashboardEmptyHint');
+      if (state.records.length === 0) {
+        hintBox.classList.remove('hidden');
+        document.getElementById('dashboardHintTitle').textContent = 'Seu painel está pronto!';
+        document.getElementById('dashboardHintBody').innerHTML =
+          'Registre seus abastecimentos na aba <strong>Abastecer</strong> ou carregue um conjunto de dados realista para testar gráficos e médias imediatamente.';
+      } else if (closedCount === 0) {
+        hintBox.classList.remove('hidden');
+        document.getElementById('dashboardHintTitle').textContent = 'Falta apenas o próximo Tanque Cheio!';
+        document.getElementById('dashboardHintBody').innerHTML =
+          'Você já tem o 1º registro base salvo. No próximo abastecimento com <strong>Tanque Cheio</strong>, o consumo real (km/L) e o custo por km aparecerão automaticamente.';
+      } else {
+        hintBox.classList.add('hidden');
+      }
+
+      // 1. Gasto no mês atual
+      const monthSpend = state.records
+        .filter(r => (r.date || '').startsWith(nowIsoMonth))
+        .reduce((acc, r) => acc + r.totalValue, 0);
+
+      const monthCount = state.records.filter(r => (r.date || '').startsWith(nowIsoMonth)).length;
+      document.getElementById('kpiMonthSpend').textContent = formatCurrency(monthSpend);
+      document.getElementById('kpiMonthSub').textContent = monthCount === 1
+        ? '1 abastecimento neste mês'
+        : `${monthCount} abastecimentos neste mês`;
+
+      // 2. Consumo Médio Geral
+      const avgConsEl = document.getElementById('kpiAvgConsumption');
+      const avgConsSubEl = document.getElementById('kpiAvgConsumptionSub');
+      if (telemetry.avgLiquidKmL) {
+        avgConsEl.textContent = `${formatNumber(telemetry.avgLiquidKmL, 1)} km/L`;
+        avgConsSubEl.textContent = telemetry.avgGnvKmM3
+          ? `GNV: ${formatNumber(telemetry.avgGnvKmM3, 1)} km/m³`
+          : `Em ${closedCount} ${closedCount === 1 ? 'ciclo fechado' : 'ciclos fechados'}`;
+      } else if (telemetry.avgGnvKmM3) {
+        avgConsEl.textContent = `${formatNumber(telemetry.avgGnvKmM3, 1)} km/m³`;
+        avgConsSubEl.textContent = 'Média geral no GNV';
+      } else {
+        avgConsEl.textContent = '--';
+        avgConsSubEl.textContent = 'Aguardando 2º tanque cheio';
+      }
+
+      // 3. Custo Médio por Km
+      const costKmEl = document.getElementById('kpiCostPerKm');
+      const costKmSubEl = document.getElementById('kpiCostPerKmSub');
+      if (telemetry.avgCostPerKm) {
+        costKmEl.textContent = `${formatCurrency(telemetry.avgCostPerKm)}/km`;
+        costKmSubEl.textContent = `A cada 100 km: ${formatCurrency(telemetry.avgCostPerKm * 100)}`;
+      } else {
+        costKmEl.textContent = '--';
+        costKmSubEl.textContent = 'Aguardando ciclo fechado';
+      }
+
+      // 4. Total Rodado e Investido
+      document.getElementById('kpiTotalDriven').textContent = `${formatIntKm(telemetry.totalDriven)} km`;
+      document.getElementById('kpiTotalInvested').textContent = `Total pago: ${formatCurrency(telemetry.totalInvested)}`;
+
+      // Renderizar Gráfico de Barras dos Últimos 6 Meses
+      renderMonthlyChart(nowIsoMonth);
+
+      // Renderizar Comparativo por Tipo de Combustível
+      renderFuelBreakdown(telemetry);
+    }
+
+    function renderMonthlyChart(nowIsoMonth) {
+      const container = document.getElementById('monthlyChartContainer');
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+      // Gerar últimos 6 meses até o mês mais recente (ou hoje)
+      const baseDate = new Date();
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = `${monthNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+        const total = state.records
+          .filter(r => (r.date || '').startsWith(key))
+          .reduce((acc, r) => acc + r.totalValue, 0);
+        months.push({ key, label, total });
+      }
+
+      const maxVal = Math.max(...months.map(m => m.total), 1);
+      const nonZeroMonths = months.filter(m => m.total > 0);
+      const avgMonthly = nonZeroMonths.length > 0
+        ? nonZeroMonths.reduce((a, m) => a + m.total, 0) / nonZeroMonths.length
+        : 0;
+
+      document.getElementById('monthlyAvgBadge').textContent = `Média: ${formatCurrency(avgMonthly)}`;
+
+      container.innerHTML = months.map(m => {
+        const heightPct = m.total > 0 ? Math.max(10, Math.round((m.total / maxVal) * 100)) : 4;
+        const isCurrent = m.key === nowIsoMonth;
+        const barColor = m.total === 0
+          ? 'bg-slate-200 dark:bg-slate-800'
+          : isCurrent
+            ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-md shadow-emerald-500/20'
+            : 'bg-slate-400/70 dark:bg-slate-700';
+
+        const topLabel = m.total > 0 ? `R$${Math.round(m.total)}` : '';
+
+        return `
+          <div class="flex-1 flex flex-col items-center h-full justify-end group">
+            <span class="text-[10px] font-bold ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} mb-1">
+              ${topLabel}
+            </span>
+            <div class="w-full max-w-[38px] bg-slate-100 dark:bg-auto-950 rounded-t-xl h-28 flex items-end overflow-hidden p-0.5">
+              <div style="height: ${heightPct}%" class="w-full rounded-t-lg transition-all duration-300 ${barColor}"></div>
+            </div>
+            <span class="text-[10px] font-semibold mt-1.5 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-500 dark:text-slate-400'}">
+              ${m.label}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderFuelBreakdown(telemetry) {
+      const listEl = document.getElementById('fuelBreakdownList');
+      const entries = Object.keys(FUEL_TYPES).map(key => {
+        const st = telemetry.fuelStats[key];
+        const avgKmUnit = st.qty > 0 ? st.distance / st.qty : null;
+        const costKm = st.distance > 0 ? st.cost / st.distance : null;
+        const totalSpentRaw = state.records
+          .filter(r => r.fuelType === key)
+          .reduce((acc, r) => acc + r.totalValue, 0);
+        return {
+          fuel: FUEL_TYPES[key],
+          cycles: st.cycles,
+          avgKmUnit,
+          costKm,
+          totalSpentRaw
+        };
+      }).filter(item => item.totalSpentRaw > 0 || item.cycles > 0);
+
+      if (entries.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-6 text-xs text-slate-500 dark:text-slate-400">
+            Nenhum dado suficiente ainda para comparar combustíveis.
+          </div>
+        `;
+        return;
+      }
+
+      const maxAvg = Math.max(...entries.map(e => e.avgKmUnit || 0), 1);
+
+      listEl.innerHTML = entries.map(item => {
+        const pct = item.avgKmUnit ? Math.max(15, Math.round((item.avgKmUnit / maxAvg) * 100)) : 8;
+        const avgText = item.avgKmUnit
+          ? `${formatNumber(item.avgKmUnit, 2)} km/${item.fuel.unit}`
+          : 'Aguardando ciclo cheio';
+        const costText = item.costKm
+          ? `${formatCurrency(item.costKm)}/km`
+          : `Gasto: ${formatCurrency(item.totalSpentRaw)}`;
+
+        return `
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-auto-950 border border-slate-200/70 dark:border-slate-800/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-lg border ${item.fuel.badgeClass}">
+                  ${item.fuel.label}
+                </span>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">
+                  ${item.cycles} ${item.cycles === 1 ? 'ciclo' : 'ciclos'}
+                </span>
+              </div>
+              <div class="text-right">
+                <span class="text-sm font-extrabold">${avgText}</span>
+                <span class="block text-[11px] text-slate-500 dark:text-slate-400">${costText}</span>
+              </div>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div style="width: ${pct}%" class="h-full rounded-full ${item.fuel.barClass}"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ======================================================================
+     * ABA 3: HISTÓRICO DE ABASTECIMENTOS (FILTRO, EDIÇÃO E EXCLUSÃO)
+     * ====================================================================== */
+
+    function setHistoryFilter(filterKey) {
+      state.historyFilter = filterKey;
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const chipsContainer = document.getElementById('historyFilterChips');
+      const listContainer = document.getElementById('historyListContainer');
+      const searchQuery = (document.getElementById('historySearchInput').value || '').trim().toLowerCase();
+
+      const filterOptions = [
+        { key: 'todos', label: 'Todos' },
+        ...Object.values(FUEL_TYPES).map(f => ({ key: f.id, label: f.short }))
+      ];
+
+      chipsContainer.innerHTML = filterOptions.map(opt => {
+        const active = state.historyFilter === opt.key;
+        return `
+          <button
+            type="button"
+            onclick="setHistoryFilter('${opt.key}')"
+            class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+              active
+                ? 'bg-emerald-500 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-auto-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+            }"
+          >
+            ${opt.label}
+          </button>
+        `;
+      }).join('');
+
+      const telemetry = computeTelemetry();
+      const sortedDesc = [...telemetry.sortedAsc].reverse();
+
+      const filtered = sortedDesc.filter(rec => {
+        if (state.historyFilter !== 'todos' && rec.fuelType !== state.historyFilter) return false;
+        if (searchQuery) {
+          const hay = `${rec.notes || ''} ${formatDateBr(rec.date)} ${FUEL_TYPES[rec.fuelType]?.label || ''} ${rec.odometer}`.toLowerCase();
+          if (!hay.includes(searchQuery)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="bg-white dark:bg-auto-900 rounded-2xl p-8 text-center border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Nenhum abastecimento encontrado</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              ${state.records.length === 0 ? 'Toque na aba "Abastecer" para fazer seu primeiro lançamento.' : 'Tente limpar os filtros de busca acima.'}
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(rawRec => {
+        const rec = telemetry.enrichedMap[rawRec.id];
+        const fuel = FUEL_TYPES[rec.fuelType] || FUEL_TYPES.gasolina;
+
+        let statusPill = '';
+        if (rec.status === 'closed') {
+          const burnedNote = rec.burnedFuelType && rec.burnedFuelType !== rec.fuelType && rec.burnedFuelType !== 'misto'
+            ? ` (${FUEL_TYPES[rec.burnedFuelType]?.short || ''})`
+            : rec.burnedFuelType === 'misto' ? ' (Tanque misto)' : '';
+
+          statusPill = `
+            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+              <span class="font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                ${formatNumber(rec.kmPerUnit, 2)} km/${fuel.unit}${burnedNote}
+              </span>
+              <span class="font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-auto-950 px-2.5 py-1 rounded-lg">
+                ${formatCurrency(rec.costPerKm)}/km
+              </span>
+              <span class="text-slate-400 ml-auto text-[11px]">
+                Ciclo: +${formatIntKm(rec.cycleDistance)} km
+              </span>
+            </div>
+          `;
+        } else if (rec.status === 'partial') {
+          statusPill = `
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-amber-600 dark:text-amber-400">
+              <span class="font-semibold">Abastecimento parcial — será somado no próximo tanque cheio</span>
+              ${rec.stepDeltaKm ? `<span>+${formatIntKm(rec.stepDeltaKm)} km</span>` : ''}
+            </div>
+          `;
+        } else {
+          statusPill = `
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span>Tanque cheio inicial (referência p/ próximo cálculo)</span>
+            </div>
+          `;
+        }
+
+        return `
+          <article class="bg-white dark:bg-auto-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-lg border ${fuel.badgeClass}">
+                    ${fuel.label}
+                  </span>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    ${formatDateBr(rec.date)}
+                  </span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    rec.fullTank
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }">
+                    ${rec.fullTank ? 'Cheio' : 'Parcial'}
+                  </span>
+                </div>
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  ${formatIntKm(rec.odometer)} km
+                  ${rec.notes ? `<span class="font-normal text-xs text-slate-500 dark:text-slate-400"> • ${escapeHtml(rec.notes)}</span>` : ''}
+                </p>
+              </div>
+
+              <div class="text-right shrink-0">
+                <p class="text-lg font-extrabold tracking-tight">${formatCurrency(rec.totalValue)}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  ${formatNumber(rec.quantity, 2)} ${fuel.unit} × R$ ${formatNumber(rec.unitPrice, 2)}
+                </p>
+              </div>
+            </div>
+
+            ${statusPill}
+
+            <!-- Ações Rápidas (Editar / Excluir) -->
+            <div class="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onclick="startEditRecord('${rec.id}')"
+                class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition flex items-center gap-1"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onclick="askDeleteRecord('${rec.id}')"
+                class="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold text-rose-600 dark:text-rose-400 transition flex items-center gap-1"
+              >
+                Excluir
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function askDeleteRecord(id) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      openConfirmModal(
+        'Excluir Abastecimento?',
+        `Deseja remover o registro de ${formatDateBr(rec.date)} (${formatIntKm(rec.odometer)} km — ${formatCurrency(rec.totalValue)})? Os cálculos de média serão atualizados.`,
+        'Excluir',
+        'danger',
+        () => {
+          state.records = state.records.filter(r => r.id !== id);
+          if (state.editingId === id) cancelEditMode();
+          saveToStorage();
+          refreshAllViews();
+          showToast('Registro excluído.', 'info');
+        }
+      );
+    }
+
+    /* ======================================================================
+     * ABA 4: CALCULADORA FLEX INTELIGENTE & BACKUP (CSV / JSON)
+     * ====================================================================== */
+
+    function getCarFlexData() {
+      const telemetry = computeTelemetry();
+      const etStats = telemetry.fuelStats.etanol;
+      const gasStats = telemetry.fuelStats.gasolina.cycles > 0
+        ? telemetry.fuelStats.gasolina
+        : telemetry.fuelStats.aditivada;
+
+      const avgEtanol = etStats.qty > 0 ? etStats.distance / etStats.qty : null;
+      const avgGasolina = gasStats.qty > 0 ? gasStats.distance / gasStats.qty : null;
+
+      if (avgEtanol && avgGasolina && avgGasolina > 0) {
+        return {
+          hasCustomRatio: true,
+          avgEtanol,
+          avgGasolina,
+          customRatio: avgEtanol / avgGasolina
+        };
+      }
+      return {
+        hasCustomRatio: false,
+        avgEtanol,
+        avgGasolina,
+        customRatio: 0.70
+      };
+    }
+
+    function toggleFlexRatioMode(useCustom) {
+      state.useCustomFlexRatio = useCustom;
+      saveToStorage();
+      evaluateFlexCalculator();
+    }
+
+    function updateTankSizeSlider(val) {
+      state.tankCapacity = Number(val) || 50;
+      document.getElementById('calcTankSizeLabel').textContent = `${state.tankCapacity} L`;
+      saveToStorage();
+      evaluateFlexCalculator();
+    }
+
+    function prefillFlexInputsIfEmpty() {
+      const etInput = document.getElementById('calcEtanolPrice');
+      const gasInput = document.getElementById('calcGasolinaPrice');
+      document.getElementById('calcTankSize').value = state.tankCapacity;
+      document.getElementById('calcTankSizeLabel').textContent = `${state.tankCapacity} L`;
+
+      if (!etInput.value) {
+        const lastEt = [...state.records].reverse().find(r => r.fuelType === 'etanol' && r.unitPrice > 0);
+        etInput.value = lastEt ? formatNumber(lastEt.unitPrice, 2) : '3,99';
+      }
+      if (!gasInput.value) {
+        const lastGas = [...state.records].reverse().find(r => (r.fuelType === 'gasolina' || r.fuelType === 'aditivada') && r.unitPrice > 0);
+        gasInput.value = lastGas ? formatNumber(lastGas.unitPrice, 2) : '5,89';
+      }
+    }
+
+    function evaluateFlexCalculator() {
+      const flexInfo = getCarFlexData();
+      const bannerEl = document.getElementById('flexSmartBanner');
+      const badgeEl = document.getElementById('flexRatioModeBadge');
+      const resultEl = document.getElementById('flexResultCard');
+
+      const activeRatio = (flexInfo.hasCustomRatio && state.useCustomFlexRatio)
+        ? flexInfo.customRatio
+        : 0.70;
+
+      if (flexInfo.hasCustomRatio) {
+        const pctStr = formatNumber(flexInfo.customRatio * 100, 1) + '%';
+        badgeEl.textContent = state.useCustomFlexRatio ? `Seu Carro (${pctStr})` : 'Padrão 70%';
+
+        bannerEl.innerHTML = `
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <p class="font-bold text-emerald-600 dark:text-emerald-400">Histórico real do seu carro ativo!</p>
+              <p class="text-slate-600 dark:text-slate-400 mt-0.5">
+                Etanol: <strong>${formatNumber(flexInfo.avgEtanol, 1)} km/L</strong> vs Gasolina: <strong>${formatNumber(flexInfo.avgGasolina, 1)} km/L</strong> (rendimento real de <strong>${pctStr}</strong>)
+              </p>
+            </div>
+            <div class="flex rounded-lg bg-slate-200 dark:bg-slate-800 p-0.5 text-[11px] font-bold">
+              <button type="button" onclick="toggleFlexRatioMode(true)" class="px-2.5 py-1 rounded-md transition ${state.useCustomFlexRatio ? 'bg-emerald-500 text-white' : 'text-slate-600 dark:text-slate-400'}">Meu Carro</button>
+              <button type="button" onclick="toggleFlexRatioMode(false)" class="px-2.5 py-1 rounded-md transition ${!state.useCustomFlexRatio ? 'bg-emerald-500 text-white' : 'text-slate-600 dark:text-slate-400'}">70%</button>
+            </div>
+          </div>
+        `;
+      } else {
+        badgeEl.textContent = 'Referência 70%';
+        bannerEl.innerHTML = `
+          <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+            Usando a referência clássica de <strong>70%</strong>. Assim que você tiver médias fechadas de <strong>Etanol</strong> e <strong>Gasolina</strong> no histórico, esta calculadora se ajustará automaticamente ao motor do seu carro!
+          </p>
+        `;
+      }
+
+      const pEtanol = parseBrFloat(document.getElementById('calcEtanolPrice').value);
+      const pGasolina = parseBrFloat(document.getElementById('calcGasolinaPrice').value);
+
+      if (!Number.isFinite(pEtanol) || pEtanol <= 0 || !Number.isFinite(pGasolina) || pGasolina <= 0) {
+        resultEl.innerHTML = `<p class="text-xs text-center text-slate-500 py-2">Digite os preços atuais do Etanol e da Gasolina na bomba acima.</p>`;
+        return;
+      }
+
+      const currentPriceRatio = pEtanol / pGasolina;
+      const maxWorthEtanolPrice = pGasolina * activeRatio;
+      const etanolWins = currentPriceRatio <= activeRatio;
+
+      // Simulação financeira para a autonomia equivalente a 1 tanque de Gasolina
+      // Ex: se o carro tem tanque de 50L de gasolina, para rodar a mesma distância no etanol precisará de (50 / activeRatio) litros de etanol.
+      const tankLiters = state.tankCapacity;
+      const costFullGas = tankLiters * pGasolina;
+      const eqCostEtanolForSameRange = (tankLiters / activeRatio) * pEtanol;
+      const savingsForSameRange = Math.abs(costFullGas - eqCostEtanolForSameRange);
+
+      // Se tivermos km/L reais, mostramos também R$/km exato estimado!
+      let costKmComparisonHtml = '';
+      if (flexInfo.hasCustomRatio && state.useCustomFlexRatio) {
+        const cKmEt = pEtanol / flexInfo.avgEtanol;
+        const cKmGas = pGasolina / flexInfo.avgGasolina;
+        costKmComparisonHtml = `
+          <div class="grid grid-cols-2 gap-2 pt-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-white dark:bg-auto-900 border border-slate-200 dark:border-slate-800">
+              <span class="text-slate-500 block text-[11px]">Custo no Etanol</span>
+              <strong class="text-sm text-emerald-600 dark:text-emerald-400">${formatCurrency(cKmEt)} / km</strong>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white dark:bg-auto-900 border border-slate-200 dark:border-slate-800">
+              <span class="text-slate-500 block text-[11px]">Custo na Gasolina</span>
+              <strong class="text-sm text-amber-600 dark:text-amber-400">${formatCurrency(cKmGas)} / km</strong>
+            </div>
+          </div>
+        `;
+      }
+
+      if (etanolWins) {
+        resultEl.className = 'rounded-2xl p-4 bg-emerald-500/10 border-2 border-emerald-500/40 space-y-2.5';
+        resultEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Melhor Escolha Agora</span>
+            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white">Relação: ${formatNumber(currentPriceRatio * 100, 1)}%</span>
+          </div>
+          <p class="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">Abasteça com ETANOL</p>
+          <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+            O Etanol compensa até <strong>R$ ${formatNumber(maxWorthEtanolPrice, 2)}/L</strong>. Você economiza cerca de <strong>${formatCurrency(savingsForSameRange)}</strong> para rodar a autonomia equivalente a um tanque de ${tankLiters}L.
+          </p>
+          ${costKmComparisonHtml}
+        `;
+      } else {
+        resultEl.className = 'rounded-2xl p-4 bg-amber-500/10 border-2 border-amber-500/40 space-y-2.5';
+        resultEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Melhor Escolha Agora</span>
+            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950">Relação: ${formatNumber(currentPriceRatio * 100, 1)}%</span>
+          </div>
+          <p class="text-2xl font-extrabold text-amber-700 dark:text-amber-300">Abasteça com GASOLINA</p>
+          <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+            Para o Etanol valer a pena hoje, precisaria custar no máximo <strong>R$ ${formatNumber(maxWorthEtanolPrice, 2)}/L</strong>. Com Gasolina você economiza cerca de <strong>${formatCurrency(savingsForSameRange)}</strong> por tanque (${tankLiters}L).
+          </p>
+          ${costKmComparisonHtml}
+        `;
+      }
+    }
+
+    /* ======================================================================
+     * EXPORTAÇÃO E IMPORTAÇÃO DE DADOS (CSV E JSON) + DADOS DE EXEMPLO
+     * ====================================================================== */
+
+    function triggerFileDownload(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportCSV() {
+      if (state.records.length === 0) {
+        showToast('Não há registros para exportar ainda.', 'error');
+        return;
+      }
+
+      const telemetry = computeTelemetry();
+      const headers = [
+        'Data',
+        'Odometro_km',
+        'Combustivel',
+        'Tanque_Cheio',
+        'Quantidade',
+        'Unidade',
+        'Preco_Unitario_RS',
+        'Valor_Total_RS',
+        'Consumo_Ciclo',
+        'Custo_por_Km_RS',
+        'Posto_Observacao'
+      ];
+
+      const rows = telemetry.sortedAsc.map(raw => {
+        const r = telemetry.enrichedMap[raw.id];
+        const f = FUEL_TYPES[r.fuelType] || FUEL_TYPES.gasolina;
+        const dec = n => (Number.isFinite(n) ? String(n.toFixed(2)).replace('.', ',') : '');
+        const safeNote = `"${String(r.notes || '').replace(/"/g, '""')}"`;
+
+        return [
+          formatDateBr(r.date),
+          String(r.odometer).replace('.', ','),
+          f.label,
+          r.fullTank ? 'Sim' : 'Nao',
+          dec(r.quantity),
+          f.unit,
+          String(r.unitPrice.toFixed(3)).replace('.', ','),
+          dec(r.totalValue),
+          r.kmPerUnit ? dec(r.kmPerUnit) : '',
+          r.costPerKm ? dec(r.costPerKm) : '',
+          safeNote
+        ].join(';');
+      });
+
+      // UTF-8 com BOM (\uFEFF) e ponto-e-vírgula para abrir direto no Excel em Português!
+      const csvContent = '\uFEFF' + headers.join(';') + '\n' + rows.join('\n');
+      const fileDate = getTodayISO();
+      triggerFileDownload(`autotanque_planilha_${fileDate}.csv`, csvContent, 'text/csv;charset=utf-8;');
+      showToast('Planilha CSV gerada com sucesso!', 'success');
+    }
+
+    function exportJSON() {
+      if (state.records.length === 0) {
+        showToast('Não há registros para exportar ainda.', 'error');
+        return;
+      }
+      const payload = {
+        app: 'AutoTanque',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        settings: {
+          tankCapacity: state.tankCapacity,
+          selectedFuel: state.selectedFuel
+        },
+        records: state.records
+      };
+      const fileDate = getTodayISO();
+      triggerFileDownload(`autotanque_backup_${fileDate}.json`, JSON.stringify(payload, null, 2), 'application/json');
+      showToast('Backup JSON baixado!', 'success');
+    }
+
+    function handleImportJSON(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const importedRecords = Array.isArray(parsed) ? parsed : parsed.records;
+
+          if (!Array.isArray(importedRecords) || importedRecords.length === 0) {
+            showToast('Arquivo JSON inválido ou sem abastecimentos.', 'error');
+            return;
+          }
+
+          // Validar campos essenciais de cada registro
+          const sanitized = importedRecords
+            .filter(r => Number.isFinite(Number(r.odometer)) && Number.isFinite(Number(r.totalValue)) && Number.isFinite(Number(r.quantity)))
+            .map(r => ({
+              id: r.id || generateId(),
+              date: r.date || getTodayISO(),
+              odometer: Number(r.odometer),
+              fuelType: FUEL_TYPES[r.fuelType] ? r.fuelType : 'gasolina',
+              totalValue: Number(r.totalValue),
+              unitPrice: Number(r.unitPrice) || Number((r.totalValue / r.quantity).toFixed(3)),
+              quantity: Number(r.quantity),
+              fullTank: typeof r.fullTank === 'boolean' ? r.fullTank : true,
+              notes: r.notes ? String(r.notes).slice(0, 60) : ''
+            }));
+
+          if (sanitized.length === 0) {
+            showToast('Nenhum registro válido encontrado no arquivo.', 'error');
+            return;
+          }
+
+          openConfirmModal(
+            'Restaurar Backup JSON?',
+            `Foram encontrados ${sanitized.length} abastecimentos no arquivo. Deseja substituir os dados atuais por este backup?`,
+            'Restaurar Dados',
+            'primary',
+            () => {
+              state.records = sanitized;
+              if (parsed.settings && parsed.settings.tankCapacity) {
+                state.tankCapacity = Number(parsed.settings.tankCapacity) || 50;
+              }
+              saveToStorage();
+              refreshAllViews();
+              showToast(`${sanitized.length} registros importados com sucesso!`, 'success');
+            }
+          );
+        } catch (err) {
+          showToast('Erro ao ler o arquivo JSON.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function buildSampleDataset() {
+      const now = new Date();
+      const makeDate = (monthsAgo, day) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, day);
+        const tzOffset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+      };
+
+      return [
+        {
+          id: generateId(),
+          date: makeDate(3, 5),
+          odometer: 42100,
+          fuelType: 'gasolina',
+          unitPrice: 5.79,
+          quantity: 41.0,
+          totalValue: 237.39,
+          fullTank: true,
+          notes: 'Posto Shell Avenida'
+        },
+        {
+          id: generateId(),
+          date: makeDate(3, 21),
+          odometer: 42592,
+          fuelType: 'gasolina',
+          unitPrice: 5.84,
+          quantity: 40.5,
+          totalValue: 236.52,
+          fullTank: true,
+          notes: 'Posto Ipiranga Centro'
+        },
+        {
+          id: generateId(),
+          date: makeDate(2, 8),
+          odometer: 42810,
+          fuelType: 'gasolina',
+          unitPrice: 5.89,
+          quantity: 16.98,
+          totalValue: 100.00,
+          fullTank: false,
+          notes: 'Parcial rápido na estrada'
+        },
+        {
+          id: generateId(),
+          date: makeDate(2, 19),
+          odometer: 43120,
+          fuelType: 'etanol',
+          unitPrice: 3.79,
+          quantity: 26.8,
+          totalValue: 101.57,
+          fullTank: true,
+          notes: 'Posto BR — trocando p/ Etanol'
+        },
+        {
+          id: generateId(),
+          date: makeDate(1, 7),
+          odometer: 43465,
+          fuelType: 'etanol',
+          unitPrice: 3.85,
+          quantity: 40.2,
+          totalValue: 154.77,
+          fullTank: true,
+          notes: 'Posto BR Matriz'
+        },
+        {
+          id: generateId(),
+          date: makeDate(1, 24),
+          odometer: 43818,
+          fuelType: 'gasolina',
+          unitPrice: 5.89,
+          quantity: 40.8,
+          totalValue: 240.31,
+          fullTank: true,
+          notes: 'Posto Ipiranga Centro'
+        },
+        {
+          id: generateId(),
+          date: makeDate(0, 4),
+          odometer: 44315,
+          fuelType: 'gasolina',
+          unitPrice: 5.92,
+          quantity: 40.4,
+          totalValue: 239.17,
+          fullTank: true,
+          notes: 'Posto Shell Avenida'
+        }
+      ];
+    }
+
+    function askLoadSampleData() {
+      const msg = state.records.length > 0
+        ? 'Isso substituirá seus registros atuais por 7 abastecimentos de exemplo (com Gasolina, Etanol e abastecimento parcial) para demonstrar gráficos e médias.'
+        : 'Deseja carregar 7 abastecimentos realistas (Gasolina, Etanol e parcial) para explorar o Painel e a Calculadora Flex personalizada?';
+
+      openConfirmModal(
+        'Carregar Dados de Exemplo?',
+        msg,
+        'Carregar Exemplo',
+        'primary',
+        () => {
+          state.records = buildSampleDataset();
+          saveToStorage();
+          refreshAllViews();
+          showToast('Dados de exemplo carregados! Confira o Painel.', 'success');
+          switchTab('painel');
+        }
+      );
+    }
+
+    function askClearAllData() {
+      if (state.records.length === 0) {
+        showToast('O histórico já está vazio.', 'info');
+        return;
+      }
+      openConfirmModal(
+        'Apagar Todos os Dados?',
+        `Todos os ${state.records.length} abastecimentos salvos neste navegador serão apagados permanentemente. Recomendamos baixar um Backup antes.`,
+        'Sim, Apagar Tudo',
+        'danger',
+        () => {
+          state.records = [];
+          cancelEditMode();
+          saveToStorage();
+          refreshAllViews();
+          showToast('Todos os dados foram removidos do aparelho.', 'info');
+        }
+      );
+    }
+
+    /* ======================================================================
+     * MODAL DE CONFIRMAÇÃO E TOASTS (ZERO ALERT / ZERO CONFIRM NATIVO)
+     * ====================================================================== */
+
+    function openConfirmModal(title, description, actionText, variant, onConfirm) {
+      confirmCallback = onConfirm;
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalDesc').textContent = description;
+
+      const actionBtn = document.getElementById('confirmModalActionBtn');
+      const iconBox = document.getElementById('confirmIconBox');
+      actionBtn.textContent = actionText;
+
+      if (variant === 'danger') {
+        actionBtn.className = 'flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-extrabold transition';
+        iconBox.className = 'w-10 h-10 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0';
+      } else {
+        actionBtn.className = 'flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-extrabold transition';
+        iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0';
+      }
+
+      actionBtn.onclick = () => {
+        const cb = confirmCallback;
+        closeConfirmModal();
+        if (typeof cb === 'function') cb();
+      };
+
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      confirmCallback = null;
+    }
+
+    function showToast(message, type = 'success') {
+      const box = document.getElementById('toastBox');
+      const text = document.getElementById('toastText');
+      if (toastTimer) clearTimeout(toastTimer);
+
+      text.textContent = message;
+      let colorClasses = 'bg-emerald-600 border-emerald-400 text-white';
+      if (type === 'error') {
+        colorClasses = 'bg-rose-600 border-rose-400 text-white';
+      } else if (type === 'info') {
+        colorClasses = 'bg-slate-800 border-slate-600 text-white';
+      }
+
+      box.className = `pointer-events-auto max-w-sm w-full rounded-2xl px-4 py-3 shadow-2xl border text-sm font-bold flex items-center justify-center text-center transition-all ${colorClasses}`;
+      box.classList.remove('hidden');
+
+      toastTimer = setTimeout(() => {
+        box.classList.add('hidden');
+      }, 3000);
+    }
+
+    /* ======================================================================
+     * SINCRONIZAÇÃO GERAL DA INTERFACE
+     * ====================================================================== */
+
+    function updateStationsAutocomplete() {
+      const datalist = document.getElementById('stationsDatalist');
+      const uniqueNotes = Array.from(
+        new Set(state.records.map(r => (r.notes || '').trim()).filter(Boolean))
+      ).slice(-12);
+      datalist.innerHTML = uniqueNotes.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+    }
+
+    function refreshAllViews() {
+      const count = state.records.length;
+      const telemetry = computeTelemetry();
+
+      // Subtítulo do cabeçalho
+      const subEl = document.getElementById('headerSubtitle');
+      if (telemetry.latestRecord) {
+        const avgChip = telemetry.avgLiquidKmL
+          ? ` • Média ${formatNumber(telemetry.avgLiquidKmL, 1)} km/L`
+          : '';
+        subEl.textContent = `${formatIntKm(telemetry.latestRecord.odometer)} km${avgChip}`;
+      } else {
+        subEl.textContent = 'Armazenamento local offline';
+      }
+
+      // Botão rápido de demonstração no topo se zero registros
+      const demoBtn = document.getElementById('quickDemoBtn');
+      if (count === 0) {
+        demoBtn.classList.remove('hidden');
+      } else {
+        demoBtn.classList.add('hidden');
+      }
+
+      // Contador de armazenamento na aba Backup
+      document.getElementById('storageCountBadge').textContent = count === 1 ? '1 registro' : `${count} registros`;
+
+      updateStationsAutocomplete();
+      renderFuelSelector();
+      updateOdometerReferenceUI();
+      renderDashboard();
+      renderHistory();
+      prefillFlexInputsIfEmpty();
+      evaluateFlexCalculator();
+    }
+
+    /* ======================================================================
+     * INICIALIZAÇÃO DO APP
+     * ====================================================================== */
+    window.onload = function () {
+      loadFromStorage();
+      document.getElementById('inputDate').value = getTodayISO();
+      toggleFullTank(true);
+      switchTab('abastecer');
+    };
+  </script>
+</body>
+</html>
