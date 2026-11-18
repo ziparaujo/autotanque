@@ -46,10 +46,6 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <!-- Botão rápido para dados de demonstração se estiver vazio -->
-          <button id="quickDemoBtn" onclick="askLoadSampleData()" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition">
-            Testar c/ Exemplo
-          </button>
 
           <!-- Alternar Tema Claro / Escuro (útil sob sol forte no posto) -->
           <button onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro" class="p-2.5 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 transition">
@@ -293,11 +289,8 @@
             <div class="text-xs space-y-1.5">
               <p class="font-bold text-sm text-amber-700 dark:text-amber-300" id="dashboardHintTitle">Comece seus registros</p>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed" id="dashboardHintBody">
-                Para calcular o consumo exato (km/L), o app compara a quilometragem entre <strong>2 abastecimentos com Tanque Cheio</strong>. Quer ver o painel completo funcionando agora?
+                Para calcular o consumo exato (km/L), o app compara a quilometragem entre <strong>2 abastecimentos com Tanque Cheio</strong>. Registre seus abastecimentos na aba Abastecer para começar.
               </p>
-              <button onclick="askLoadSampleData()" class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
-                Carregar Dados de Exemplo
-              </button>
             </div>
           </div>
         </div>
@@ -542,19 +535,12 @@
 
           <hr class="border-slate-200 dark:border-slate-800" />
 
-          <!-- Ferramentas de Teste e Limpeza Protegida -->
-          <div class="flex flex-col sm:flex-row gap-2.5">
-            <button
-              type="button"
-              onclick="askLoadSampleData()"
-              class="flex-1 py-3 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition"
-            >
-              Carregar Dados de Exemplo
-            </button>
+          <!-- Limpeza Protegida -->
+          <div>
             <button
               type="button"
               onclick="askClearAllData()"
-              class="flex-1 py-3 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold transition"
+              class="w-full py-3 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold transition"
             >
               Apagar Todos os Dados
             </button>

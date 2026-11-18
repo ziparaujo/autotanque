@@ -108,13 +108,6 @@ function refreshAllViews() {
     subEl.textContent = 'Armazenamento local offline';
   }
 
-  // Botão rápido de demonstração no topo se zero registros
-  const demoBtn = document.getElementById('quickDemoBtn');
-  if (count === 0) {
-    demoBtn.classList.remove('hidden');
-  } else {
-    demoBtn.classList.add('hidden');
-  }
 
   // Contador de armazenamento na aba Backup
   document.getElementById('storageCountBadge').textContent = count === 1 ? '1 registro' : `${count} registros`;
