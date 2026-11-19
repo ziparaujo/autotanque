@@ -39,12 +39,7 @@ function renderDashboard() {
   const avgConsSubEl = document.getElementById('kpiAvgConsumptionSub');
   if (telemetry.avgLiquidKmL) {
     avgConsEl.textContent = `${formatNumber(telemetry.avgLiquidKmL, 1)} km/L`;
-    avgConsSubEl.textContent = telemetry.avgGnvKmM3
-      ? `GNV: ${formatNumber(telemetry.avgGnvKmM3, 1)} km/m³`
-      : `Em ${closedCount} ${closedCount === 1 ? 'ciclo fechado' : 'ciclos fechados'}`;
-  } else if (telemetry.avgGnvKmM3) {
-    avgConsEl.textContent = `${formatNumber(telemetry.avgGnvKmM3, 1)} km/m³`;
-    avgConsSubEl.textContent = 'Média geral no GNV';
+    avgConsSubEl.textContent = `Em ${closedCount} ${closedCount === 1 ? 'ciclo fechado' : 'ciclos fechados'}`;
   } else {
     avgConsEl.textContent = '--';
     avgConsSubEl.textContent = 'Aguardando 2º tanque cheio';

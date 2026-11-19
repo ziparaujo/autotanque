@@ -1,5 +1,5 @@
 /* ======================================================================
- * MOTOR DE CÁLCULO REAL DE CONSUMO (KM/L, KM/M³ E R$/KM)
+ * MOTOR DE CÁLCULO REAL DE CONSUMO (KM/L E R$/KM)
  * ====================================================================== */
 
 /**
@@ -7,8 +7,6 @@
  * - Distância percorrida desde o último abastecimento
  * - Ciclos fechados entre abastecimentos com "Tanque Cheio", somando
  *   automaticamente os litros e valores de abastecimentos parciais intermediários!
- * - Separa ciclos de tanque líquido (L) dos ciclos de cilindro GNV (m³) para
- *   não misturar unidades diferentes no mesmo veículo.
  */
 function computeTelemetry() {
   const sorted = [...state.records].sort((a, b) => {
@@ -18,15 +16,9 @@ function computeTelemetry() {
 
   const enrichedMap = {};
 
-  // Estado acumulador separado por sistema de alimentação: 'liquid' (L) vs 'gnv' (m³)
+  // Estado acumulador para ciclos de combustível líquido (L)
   const trackers = {
     liquid: {
-      lastFullRecord: null,
-      accQty: 0,
-      accCost: 0,
-      partialFuels: new Set()
-    },
-    gnv: {
       lastFullRecord: null,
       accQty: 0,
       accCost: 0,
@@ -43,16 +35,11 @@ function computeTelemetry() {
   let totalLiquidCycleQty = 0;
   let totalLiquidCycleCost = 0;
 
-  let totalGnvCycleDist = 0;
-  let totalGnvCycleQty = 0;
-  let totalGnvCycleCost = 0;
-
   sorted.forEach((rec, index) => {
     const prevOverall = index > 0 ? sorted[index - 1] : null;
     const stepDeltaKm = prevOverall ? Math.max(0, rec.odometer - prevOverall.odometer) : null;
 
-    const streamKey = rec.fuelType === 'gnv' ? 'gnv' : 'liquid';
-    const tr = trackers[streamKey];
+    const tr = trackers.liquid;
 
     let cycleInfo = {
       status: 'anchor', // 'no_anchor' | 'anchor' | 'partial' | 'closed'
@@ -105,15 +92,9 @@ function computeTelemetry() {
             burnedFuelType: attributedFuel
           };
 
-          if (streamKey === 'liquid') {
-            totalLiquidCycleDist += dist;
-            totalLiquidCycleQty += tr.accQty;
-            totalLiquidCycleCost += tr.accCost;
-          } else {
-            totalGnvCycleDist += dist;
-            totalGnvCycleQty += tr.accQty;
-            totalGnvCycleCost += tr.accCost;
-          }
+          totalLiquidCycleDist += dist;
+          totalLiquidCycleQty += tr.accQty;
+          totalLiquidCycleCost += tr.accCost;
 
           if (attributedFuel !== 'misto' && fuelStats[attributedFuel]) {
             fuelStats[attributedFuel].distance += dist;
@@ -144,11 +125,7 @@ function computeTelemetry() {
 
   // Médias gerais
   const avgLiquidKmL = totalLiquidCycleQty > 0 ? (totalLiquidCycleDist / totalLiquidCycleQty) : null;
-  const avgGnvKmM3 = totalGnvCycleQty > 0 ? (totalGnvCycleDist / totalGnvCycleQty) : null;
-
-  const combinedCycleDist = totalLiquidCycleDist + totalGnvCycleDist;
-  const combinedCycleCost = totalLiquidCycleCost + totalGnvCycleCost;
-  const avgCostPerKm = combinedCycleDist > 0 ? (combinedCycleCost / combinedCycleDist) : null;
+  const avgCostPerKm = totalLiquidCycleDist > 0 ? (totalLiquidCycleCost / totalLiquidCycleDist) : null;
 
   return {
     sortedAsc: sorted,
@@ -157,7 +134,6 @@ function computeTelemetry() {
     totalInvested,
     totalDriven,
     avgLiquidKmL,
-    avgGnvKmM3,
     avgCostPerKm,
     latestRecord: sorted.length > 0 ? sorted[sorted.length - 1] : null
   };

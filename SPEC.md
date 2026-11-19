@@ -55,11 +55,11 @@ AutoTanque/
 | `createdAt` | `number` | Não* | Timestamp Unix em ms (`Date.now()`) gerado na criação manual (*ausente em registros importados sem o campo). |
 | `date` | `string` | Sim | Data local do abastecimento no formato ISO `YYYY-MM-DD`. |
 | `odometer` | `number` | Sim | Quilometragem total no painel do veículo (`> 0`). Arredondado para 1 casa decimal ao salvar pelo formulário. |
-| `fuelType` | `string` | Sim | Chave pertencente a `FUEL_TYPES`: `'gasolina'`, `'aditivada'`, `'etanol'`, `'gnv'` ou `'diesel'`. |
+| `fuelType` | `string` | Sim | Chave pertencente a `FUEL_TYPES`: `'gasolina'`, `'aditivada'` ou `'etanol'`. |
 | `totalValue` | `number` | Sim | Valor total pago em Reais (`> 0`), arredondado para 2 casas decimais. |
-| `unitPrice` | `number` | Sim | Preço por litro ou `m³` (`> 0`), arredondado para até 3 casas decimais (`0.001`) para suportar bombas com milésimos de real. |
-| `quantity` | `number` | Sim | Volume abastecido em Litros ou `m³` (`> 0`), arredondado para 2 casas decimais. |
-| `fullTank` | `boolean` | Sim | `true` se o tanque/cilindro foi completado até o fim; `false` para abastecimento parcial. |
+| `unitPrice` | `number` | Sim | Preço por litro (`> 0`), arredondado para até 3 casas decimais (`0.001`) para suportar bombas com milésimos de real. |
+| `quantity` | `number` | Sim | Volume abastecido em Litros (`> 0`), arredondado para 2 casas decimais. |
+| `fullTank` | `boolean` | Sim | `true` se o tanque foi completado até o fim; `false` para abastecimento parcial. |
 | `notes` | `string` | Não | Nome do posto ou observação livre. Limite de `50` caracteres no formulário (e truncado em `60` caracteres na importação JSON). |
 
 ### 3.3. Preferências Persistidas (`Settings`)
@@ -77,11 +77,6 @@ AutoTanque/
 | `gasolina` | Gasolina | `L` (Litros) | Líquido (`liquid`) | Âmbar (`amber-500`) |
 | `aditivada` | Aditivada | `L` (Litros) | Líquido (`liquid`) | Azul-celeste (`sky-500`) |
 | `etanol` | Etanol | `L` (Litros) | Líquido (`liquid`) | Esmeralda (`emerald-500`) |
-| `gnv` | GNV (m³) | `m³` (Metros Cúbicos) | Gasoso (`gnv`) | Roxo (`purple-500`) |
-| `diesel` | Diesel | `L` (Litros) | Líquido (`liquid`) | Laranja (`orange-500`) |
-
-**Adaptação dinâmica para GNV**:
-- Quando `gnv` é selecionado no formulário, os rótulos mudam automaticamente para `Preço / m³ (R$)`, `Quantidade (Metros Cúbicos (m³))`, sufixo `m³`, título da chave seletora `Cilindro Cheio` e descrição referente à média em `km/m³`.
 
 ---
 
@@ -131,7 +126,7 @@ O formulário possui 3 grandezas interligadas (`Valor Total`, `Preço Unitário`
 2. **Coerência Cronológica (com suporte a lançamentos retroativos)**:
    Considerando todos os registros exceto o que está sendo editado:
    - **Contra datas anteriores (`r.date < dataInformada`)**: o odômetro informado deve ser **estritamente maior (`>`)** que o maior odômetro registrado em datas anteriores.
-   - **No mesmo dia (`r.date === dataInformada`)**: caso não seja um lançamento retroativo (`strictlyLater.length === 0`) e não esteja em modo de edição (`!editingId`), o odômetro informado **não pode ser menor (`<`)** que o maior odômetro já lançado na mesma data (permite odômetro igual ou maior no mesmo dia, ex.: abastecer líquido e GNV na mesma parada).
+   - **No mesmo dia (`r.date === dataInformada`)**: caso não seja um lançamento retroativo (`strictlyLater.length === 0`) e não esteja em modo de edição (`!editingId`), o odômetro informado **não pode ser menor (`<`)** que o maior odômetro já lançado na mesma data (permite odômetro igual ou maior no mesmo dia, ex.: dois abastecimentos na mesma data).
    - **Contra datas posteriores (`r.date > dataInformada` — lançamento retroativo)**: o odômetro informado deve ser **estritamente menor (`<`)** que o menor odômetro registrado em datas posteriores.
 3. **Valores de Bomba Positivos**: `totalValue`, `unitPrice` e `quantity` devem ser todos números finitos maiores que zero.
 
@@ -148,26 +143,22 @@ Todos os cálculos ordenam uma cópia dos registros por:
 1. `odometer` crescente (`a.odometer - b.odometer`);
 2. Desempate por `date` em ordem lexicográfica/cronológica crescente (`YYYY-MM-DD`).
 
-### 7.2. Separação de Fluxos (`liquid` vs `gnv`)
-O motor mantém **dois rastreadores independentes**:
-- **`liquid`**: agrupa `gasolina`, `aditivada`, `etanol` e `diesel` (medidos em Litros).
-- **`gnv`**: isola exclusivamente registros de `gnv` (medidos em `m³`).
-
-Isso garante que um veículo convertido para GNV possa intercalar abastecimentos de gás e combustível líquido sem distorcer os volumes de nenhum dos dois sistemas.
+### 7.2. Fluxo Unificado de Combustível Líquido (`liquid`)
+Todos os combustíveis aceitos (`gasolina`, `aditivada`, `etanol`) operam no mesmo fluxo de combustível líquido medido em Litros (`L`).
 
 ### 7.3. Máquina de Estados dos Ciclos de Tanque Cheio
-Para cada fluxo (`liquid` ou `gnv`), os registros percorrem os seguintes estados:
+Os registros percorrem os seguintes estados no cálculo de telemetria:
 
 1. **`no_anchor` (Sem Referência Inicial)**:
-   - Ocorre quando `fullTank === false` e ainda não houve nenhum tanque cheio anterior naquele fluxo.
+   - Ocorre quando `fullTank === false` e ainda não houve nenhum tanque cheio anterior.
    - Não acumula litros nem gera média de consumo, pois não há nível de tanque conhecido como ponto de partida.
 2. **`anchor` (Tanque Cheio Inicial / Referência)**:
-   - Primeiro registro com `fullTank === true` naquele fluxo.
+   - Primeiro registro com `fullTank === true`.
    - Define `lastFullRecord = rec` e zera os acumuladores (`accQty = 0`, `accCost = 0`, `partialFuels = Set()`).
 3. **`partial` (Abastecimento Parcial Intermediário)**:
    - Registro com `fullTank === false` após já existir um `lastFullRecord`.
    - Soma `rec.quantity` em `accQty`, soma `rec.totalValue` em `accCost` e adiciona `rec.fuelType` ao conjunto `partialFuels`.
-   - A média permanece pendente até o próximo tanque cheio do mesmo fluxo.
+   - A média permanece pendente até o próximo tanque cheio.
 4. **`closed` (Ciclo Fechado de Consumo)**:
    - Registro com `fullTank === true` após existir um `lastFullRecord`.
    - Soma `rec.quantity` em `accQty` e `rec.totalValue` em `accCost`.
@@ -187,8 +178,7 @@ Quando o motorista completa o tanque na bomba hoje, o volume que entra repõe o 
 - **Total Investido (`totalInvested`)**: Soma de `totalValue` de **todos** os registros cadastrados (incluindo âncoras e parciais).
 - **Total Rodado (`totalDriven`)**: `max(0, maiorOdometro - menorOdometro)` quando há pelo menos 2 registros; `0` caso contrário.
 - **Consumo Médio Líquido (`avgLiquidKmL`)**: `somaDistanciasCiclosLiquidos / somaLitrosCiclosLiquidos` (ponderado pela distância/volume real, não média aritmética simples de médias).
-- **Consumo Médio GNV (`avgGnvKmM3`)**: `somaDistanciasCiclosGnv / somaM3CiclosGnv`.
-- **Custo Médio por Km (`avgCostPerKm`)**: `(custoCiclosLiquidos + custoCiclosGnv) / (distanciaCiclosLiquidos + distanciaCiclosGnv)`.
+- **Custo Médio por Km (`avgCostPerKm`)**: `custoCiclosLiquidos / distanciaCiclosLiquidos`.
 
 ---
 
@@ -205,7 +195,7 @@ Quando o motorista completa o tanque na bomba hoje, o volume que entra repõe o 
   - `>= 1 registro` e `0 ciclos fechados`: informa que falta apenas o próximo Tanque Cheio para liberar cálculos de `km/L` e `R$/km`.
 - **Cards de KPI**:
   1. **Gasto no Mês**: soma de `totalValue` dos registros cuja `date` pertence ao mês corrente (`YYYY-MM`) + quantidade de abastecimentos no mês.
-  2. **Consumo Geral**: exibe `avgLiquidKmL` como principal (com `avgGnvKmM3` no subtítulo quando ambos existem, ou total de ciclos fechados); se houver apenas GNV, promove `avgGnvKmM3` ao destaque; caso contrário `--`.
+  2. **Consumo Geral**: exibe `avgLiquidKmL` como principal (com total de ciclos fechados no subtítulo); caso contrário `--`.
   3. **Custo por Km**: exibe `avgCostPerKm` e o custo equivalente para rodar `100 km` (`avgCostPerKm * 100`).
   4. **Total Rodado**: exibe `totalDriven` e `totalInvested`.
 - **Gráfico de Evolução Mensal (Últimos 6 Meses)**:

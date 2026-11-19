@@ -21,20 +21,18 @@ function renderFuelSelector() {
         }"
       >
         <span>${f.short}</span>
-        <span class="text-[10px] opacity-75 font-medium">${f.unit === 'm³' ? 'em m³' : 'Litros'}</span>
+        <span class="text-[10px] opacity-75 font-medium">Litros</span>
       </button>
     `;
   }).join('');
 
-  // Ajustar rótulos de unidade (Litros vs m³)
+  // Ajustar rótulos de unidade
   const currentFuel = FUEL_TYPES[state.selectedFuel];
   document.getElementById('labelUnitPrice').textContent = `Preço / ${currentFuel.unit} (R$)`;
   document.getElementById('labelQuantity').textContent = `Quantidade (${currentFuel.unitName})`;
   document.getElementById('unitSuffixBadge').textContent = currentFuel.unit;
-  document.getElementById('fullTankTitle').textContent = currentFuel.id === 'gnv' ? 'Cilindro Cheio' : 'Tanque Cheio';
-  document.getElementById('fullTankDesc').textContent = currentFuel.id === 'gnv'
-    ? 'Permite fechar o ciclo e calcular a média exata de km/m³'
-    : 'Permite fechar o ciclo e calcular a média exata de km/L';
+  document.getElementById('fullTankTitle').textContent = 'Tanque Cheio';
+  document.getElementById('fullTankDesc').textContent = 'Permite fechar o ciclo e calcular a média exata de km/L';
 
   // Se não estiver editando e o campo Preço/L estiver vazio, sugere último preço pago desse combustível
   if (!state.editingId) {
